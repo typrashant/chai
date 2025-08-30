@@ -8,7 +8,7 @@ import InvestmentAllocation from './InvestmentAllocation';
 import FinancialHealthCard from './FinancialHealthCard';
 import FinancialProtectionCard from './FinancialProtectionCard';
 import FinancialGoalsCard from './FinancialGoalsCard';
-import { RetirementTracker } from './RetirementTracker';
+import RetirementTracker from './RetirementTracker';
 
 const APP_VERSION = '1.0.0';
 
@@ -64,6 +64,7 @@ const CashflowSummaryCard = ({ data, onUpdate, isCompleted, potentialPoints }: {
         let normalizedExpenses: { [key: string]: number } = {};
 
         if (view === 'monthly') {
+            // Only include monthly items for a true cash flow view
             totalIncome = Object.values(income)
                 .filter(item => item && item.frequency === 'monthly')
                 .reduce((sum, item) => sum + item.value, 0);
@@ -78,6 +79,7 @@ const CashflowSummaryCard = ({ data, onUpdate, isCompleted, potentialPoints }: {
             totalExpenses = Object.values(normalizedExpenses).reduce((sum, val) => sum + val, 0);
 
         } else { // annual view
+            // Annualize everything for a yearly overview
             const annualize = (item: FinancialItem) => {
                 if (!item) return 0;
                 return item.frequency === 'monthly' ? item.value * 12 : item.value;

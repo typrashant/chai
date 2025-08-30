@@ -100,3 +100,5 @@ export const RetirementTracker = ({ financials, userAge }: { financials: Financi
         </div>
     );
 };
+
+export default RetirementTracker;
