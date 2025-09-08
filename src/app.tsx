@@ -185,6 +185,10 @@ const App = () => {
     if (!supabase) return; // Don't run if supabase isn't configured
 
     const checkUser = async () => {
+        if (!supabase) {
+            setIsLoading(false);
+            return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
