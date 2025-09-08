@@ -1,11 +1,25 @@
-// FIX: Add a triple-slash directive to include Vite's client types. This makes TypeScript aware of `import.meta.env` and resolves errors about the 'env' property not existing on `ImportMeta`.
-/// <reference types="vite/client" />
+// Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
+declare global {
+    interface ImportMeta {
+        readonly env: {
+            readonly VITE_SUPABASE_URL?: string;
+            readonly VITE_SUPABASE_ANON_KEY?: string;
+        }
+    }
+}
 
 import { createClient } from '@supabase/supabase-js';
 
-// Reads the Supabase URL and Key from Vite's environment variables.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let supabaseUrl: string | undefined;
+let supabaseAnonKey: string | undefined;
+
+// Use a more robust check that verifies `import.meta` and `import.meta.env` exist before trying to access them.
+// This prevents crashes in environments where they might not be immediately available.
+if (typeof import.meta !== 'undefined' && import.meta.env) {
+    supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+}
+
 
 // Defines the TypeScript interface for your entire database schema.
 // This provides static type checking and autocompletion for all your database operations.
@@ -52,7 +66,6 @@ export interface Database {
           points_source?: Json;
           updated_at?: string;
         };
-        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
         Relationships: [];
       };
       financial_snapshots: {
@@ -75,7 +88,6 @@ export interface Database {
           insurance?: Json | null;
         };
         Update: {}; // Snapshots are typically immutable
-        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
         Relationships: [];
       };
       goals: {
@@ -101,7 +113,6 @@ export interface Database {
           target_value?: number;
           is_achieved?: boolean;
         };
-        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
         Relationships: [];
       };
     };
@@ -134,5 +145,5 @@ export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
 // Only create a client if the config is valid, otherwise export null.
 export const supabase = isSupabaseConfigured
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+  ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string)
   : null;
