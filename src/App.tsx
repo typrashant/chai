@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -183,11 +181,14 @@ const App = () => {
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
-    useEffect(() => {
+  useEffect(() => {
     if (!supabase) return;
 
     const checkUser = async () => {
-        if (!supabase) return;
+        if (!supabase) {
+            setIsLoading(false);
+            return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
@@ -215,24 +216,29 @@ const App = () => {
     setIsLoading(false);
   };
   
-  const handleQuizComplete = async (user: UserProfile, persona: string) => {
-      const updatedUser = await updateUserPersona(user.user_id, persona);
-      if (updatedUser) {
-          handleAwardPoints('personaQuiz', document.body, 30);
-          setCurrentUser(updatedUser);
-      }
-  }
+  const handleAwardPoints = async (source: string, element: HTMLElement, points: number, profile?: UserProfile) => {
+    const userToUpdate = profile || currentUser;
+    if (!userToUpdate) return;
 
-  const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
-    if (currentUser) {
-        const updatedUser = await awardPoints(currentUser.user_id, source, points, currentUser);
-        if (updatedUser && updatedUser.points !== currentUser.points) {
-            setCurrentUser(updatedUser);
+    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
+    const finalUserToSet = updatedUserWithPoints || profile;
+
+    if (finalUserToSet) {
+        setCurrentUser(finalUserToSet);
+
+        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
     }
   };
+
+  const handleQuizComplete = async (user: UserProfile, persona: string) => {
+      const userWithPersona = await updateUserPersona(user.user_id, persona);
+      if (userWithPersona) {
+          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
+      }
+  }
   
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
     if (currentUser && financials) {
