@@ -1,10 +1,4 @@
-import React, { useMemo } from 'react';
-import { type Assets, type Liabilities, type Income, type Expenses } from './db';
-
-interface FinancialHealthCardProps {
-  netWorthData: { assets: Assets; liabilities: Liabilities };
-  monthlyFinancesData: { income: Income; expenses: Expenses };
-}
+import React from 'react';
 
 type RagStatus = 'green' | 'amber' | 'red' | 'neutral';
 
@@ -62,84 +56,54 @@ const RagSmiley = ({ status }: { status: RagStatus }) => {
 };
 
 interface Ratio {
-  name: string;
-  value: string;
+  value: number;
   status: RagStatus;
-  description: string;
 }
 
-const getRagStatus = (value: number, green: number, amber: number): RagStatus => {
-  if (value >= green) return 'green';
-  if (value >= amber) return 'amber';
-  return 'red';
+interface Ratios {
+  savingsRatio: Ratio;
+  financialAssetRatio: Ratio;
+  liquidityRatio: Ratio;
+  leverageRatio: Ratio;
+  debtToIncomeRatio: Ratio;
+  wealthRatio: Ratio;
+}
+
+interface FinancialHealthCardProps {
+  ratios: Ratios;
+}
+
+
+const ratioDetails: { [K in keyof Ratios]: { name: string; description: string; suffix: string } } = {
+    savingsRatio: { name: 'Savings Ratio', description: '% of income saved monthly. Ideal: > 20%', suffix: '%' },
+    financialAssetRatio: { name: 'Financial Asset Ratio', description: '% of assets in financial investments. Ideal: > 50%', suffix: '%' },
+    liquidityRatio: { name: 'Liquidity Ratio', description: 'Months of expenses covered by liquid assets. Ideal: 3-6 months', suffix: ' months' },
+    leverageRatio: { name: 'Leverage Ratio', description: '% of assets funded by debt. Ideal: < 30%', suffix: '%' },
+    debtToIncomeRatio: { name: 'Debt to Income Ratio', description: '% of income going to EMI payments. Ideal: < 36%', suffix: '%' },
+    wealthRatio: { name: 'Wealth Ratio', description: 'Net worth as a % of annual income. Ideal: > 200%', suffix: '%' },
 };
-const getRagStatusReversed = (value: number, green: number, amber: number): RagStatus => {
-  if (value <= green) return 'green';
-  if (value <= amber) return 'amber';
-  return 'red';
-};
 
-const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ netWorthData, monthlyFinancesData }) => {
-  const ratios = useMemo<Ratio[]>(() => {
-    const totalAssets = Object.values(netWorthData?.assets || {}).reduce((a, b) => a + b, 0);
-    const totalLiabilities = Object.values(netWorthData?.liabilities || {}).reduce((a, b) => a + b, 0);
-    
-    const monthlyIncome = Object.values(monthlyFinancesData?.income || {}).reduce((sum, item) => {
-      if (!item) return sum;
-      return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
-    }, 0);
-    const monthlyExpenses = Object.values(monthlyFinancesData?.expenses || {}).reduce((sum, item) => {
-        if (!item) return sum;
-        return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
-    }, 0);
-
-    const monthlySavings = monthlyIncome - monthlyExpenses;
-    const netWorth = totalAssets - totalLiabilities;
-    
-    const investableAssetKeys: (keyof Assets)[] = [
-        'stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 
-        'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'
-    ];
-    const financialAssets = investableAssetKeys.reduce((sum, key) => sum + (netWorthData?.assets[key] || 0), 0);
-    const liquidAssets = (netWorthData?.assets?.cashInHand || 0) + (netWorthData?.assets?.savingsAccount || 0);
-
-    const annualIncome = monthlyIncome * 12;
-
-    const savingsRatio = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
-    const financialAssetRatio = totalAssets > 0 ? (financialAssets / totalAssets) * 100 : 0;
-    const liquidityRatio = monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0; // Months of expenses covered
-    const leverageRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
-
-    const emi = monthlyFinancesData?.expenses?.emi;
-    const monthlyEmi = emi ? (emi.frequency === 'monthly' ? emi.value : emi.value / 12) : 0;
-    const debtToIncomeRatio = monthlyIncome > 0 ? (monthlyEmi / monthlyIncome) * 100 : 0;
-    
-    const wealthRatio = annualIncome > 0 ? (netWorth / annualIncome) * 100 : 0;
-
-    return [
-      { name: 'Savings Ratio', value: `${savingsRatio.toFixed(0)}%`, status: getRagStatus(savingsRatio, 20, 10), description: '% of income saved monthly. Ideal: > 20%' },
-      { name: 'Financial Asset Ratio', value: `${financialAssetRatio.toFixed(0)}%`, status: getRagStatus(financialAssetRatio, 50, 25), description: '% of assets in financial investments. Ideal: > 50%' },
-      { name: 'Liquidity Ratio', value: `${liquidityRatio.toFixed(1)} months`, status: getRagStatus(liquidityRatio, 6, 3), description: 'Months of expenses covered by liquid assets. Ideal: 3-6 months' },
-      { name: 'Leverage Ratio', value: `${leverageRatio.toFixed(0)}%`, status: getRagStatusReversed(leverageRatio, 30, 50), description: '% of assets funded by debt. Ideal: < 30%' },
-      { name: 'Debt to Income Ratio', value: `${debtToIncomeRatio.toFixed(0)}%`, status: getRagStatusReversed(debtToIncomeRatio, 36, 43), description: '% of income going to EMI payments. Ideal: < 36%' },
-      { name: 'Wealth Ratio', value: `${wealthRatio.toFixed(0)}%`, status: getRagStatus(wealthRatio, 200, 100), description: 'Net worth as a % of annual income. Ideal: > 200%' },
-    ];
-  }, [netWorthData, monthlyFinancesData]);
-
+const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ ratios }) => {
   return (
     <div className="card financial-health-card">
       <h2>Financial Health</h2>
       <div className="health-ratios-grid">
-        {ratios.map(({ name, value, status, description }) => (
-          <div className="ratio-item" key={name}>
-            <RagSmiley status={status} />
-            <div className="ratio-info">
-              <h3>{name}</h3>
-              <p className="ratio-value">{value}</p>
-              <p className="ratio-description">{description}</p>
-            </div>
-          </div>
-        ))}
+        {(Object.keys(ratios) as Array<keyof Ratios>).map((key) => {
+            const ratio = ratios[key];
+            const details = ratioDetails[key];
+            if (!details) return null;
+            const displayValue = `${ratio.value.toFixed(key === 'liquidityRatio' ? 1 : 0)}${details.suffix}`;
+            return (
+              <div className="ratio-item" key={details.name}>
+                <RagSmiley status={ratio.status} />
+                <div className="ratio-info">
+                  <h3>{details.name}</h3>
+                  <p className="ratio-value">{displayValue}</p>
+                  <p className="ratio-description">{details.description}</p>
+                </div>
+              </div>
+            )
+        })}
       </div>
     </div>
   );

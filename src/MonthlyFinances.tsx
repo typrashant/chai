@@ -67,14 +67,14 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
           <h3>Income</h3>
           {(Object.keys(income) as Array<keyof Income>).map((key) => {
             const item = income[key];
-            const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
             return (
               <div key={key} className="form-group-with-frequency">
                 <div className="form-group">
-                  <label htmlFor={key}>{label}</label>
-                  <input id={key} type="number" value={item.value || ''} onChange={(e) => handleUpdate('income', key, { value: Number(e.target.value) || 0 })} placeholder="₹0" />
+                  <label htmlFor={String(key)}>{label}</label>
+                  <input id={String(key)} type="number" value={item.value || ''} onChange={(e) => handleUpdate('income', String(key), { value: Number(e.target.value) || 0 })} placeholder="₹0" />
                 </div>
-                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('income', key, { frequency: newFreq })} />
+                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('income', String(key), { frequency: newFreq })} />
               </div>
             );
           })}
@@ -83,14 +83,14 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
           <h3>Expenses</h3>
            {(Object.keys(expenses) as Array<keyof Expenses>).map((key) => {
             const item = expenses[key];
-            const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
              return (
               <div key={key} className="form-group-with-frequency">
                 <div className="form-group">
-                  <label htmlFor={key}>{label}</label>
-                  <input id={key} type="number" value={item.value || ''} onChange={(e) => handleUpdate('expenses', key, { value: Number(e.target.value) || 0 })} placeholder="₹0" />
+                  <label htmlFor={String(key)}>{label}</label>
+                  <input id={String(key)} type="number" value={item.value || ''} onChange={(e) => handleUpdate('expenses', String(key), { value: Number(e.target.value) || 0 })} placeholder="₹0" />
                 </div>
-                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('expenses', key, { frequency: newFreq })} />
+                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('expenses', String(key), { frequency: newFreq })} />
               </div>
             );
           })}

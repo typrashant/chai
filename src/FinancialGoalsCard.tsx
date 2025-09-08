@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { type Goal, type User, type Financials } from './db';
+import { type Goal, type UserProfile } from './db';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
@@ -23,80 +23,30 @@ const GoalCoverageRatioBar = ({ label, ratio, status }: { label: string, ratio: 
     );
 };
 
-
-const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen, onToggle, isCompleted, potentialPoints }: { user: User, financials: Financials, onAddGoal: (goal: Goal) => void, onRemoveGoal: (id: string) => void, isOpen: boolean, onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void, isCompleted: boolean, potentialPoints: number }) => {
+export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal, onRemoveGoal, isOpen, onToggle, isCompleted, potentialPoints }: { user: UserProfile, goals: Goal[], goalCoverageRatios: any, onAddGoal: (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => void, onRemoveGoal: (id: string) => void, isOpen: boolean, onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void, isCompleted: boolean, potentialPoints: number }) => {
     const [showFormForAge, setShowFormForAge] = useState<number | null>(null);
     const [newGoalType, setNewGoalType] = useState(GOAL_TYPES[0]);
     const [otherGoalName, setOtherGoalName] = useState('');
     const [newGoalValue, setNewGoalValue] = useState('');
 
     const sortedGoals = useMemo(() => {
-        return [...user.goals].sort((a, b) => b.value - a.value);
-    }, [user.goals]);
-
-    const goalCoverageRatios = useMemo(() => {
-        const startAge = user.age || 18;
-
-        const goalsByTerm = {
-            short: { value: 0 },
-            medium: { value: 0 },
-            long: { value: 0 },
-        };
-
-        user.goals.forEach(goal => {
-            const yearsLeft = goal.targetAge - startAge;
-            if (yearsLeft < 2) {
-                goalsByTerm.short.value += goal.value;
-            } else if (yearsLeft >= 2 && yearsLeft <= 5) {
-                goalsByTerm.medium.value += goal.value;
-            } else {
-                goalsByTerm.long.value += goal.value;
-            }
-        });
-        
-        const totalGoalValue = user.goals.reduce((sum, goal) => sum + goal.value, 0);
-        
-        const investableAssetKeys: (keyof Financials['assets'])[] = [
-            'stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 
-            'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'
-        ];
-        const totalInvestableAssets = investableAssetKeys.reduce((sum, key) => sum + (financials.assets[key] || 0), 0);
-
-        const assetsByTerm = {
-            short: (financials.assets.crypto || 0) + (financials.assets.cashInHand || 0) + (financials.assets.savingsAccount || 0) + (financials.assets.recurringDeposit || 0) + (financials.assets.fixedDeposit || 0),
-            medium: (financials.assets.mutualFunds || 0),
-            long: (financials.assets.stocks || 0) + (financials.assets.nps || 0) + (financials.assets.ppf || 0) + (financials.assets.pf || 0) + (financials.assets.sukanyaSamriddhi || 0),
-        };
-        
-        type Status = 'red' | 'amber' | 'green' | 'neutral';
-
-        const calculateRatio = (assetValue: number, goalValue: number): { ratio: number; status: Status } => {
-            if (goalValue === 0) return { ratio: 0, status: 'neutral' };
-            const ratio = Math.min((assetValue / goalValue) * 100, 100);
-            let status: Status = 'red';
-            if (ratio >= 75) status = 'green';
-            else if (ratio >= 40) status = 'amber';
-            return { ratio, status };
-        };
-
-        return {
-            overall: { ...calculateRatio(totalInvestableAssets, totalGoalValue), label: 'Overall Goal Coverage' },
-            short: { ...calculateRatio(assetsByTerm.short, goalsByTerm.short.value), label: 'Short-Term (< 2 Years)' },
-            medium: { ...calculateRatio(assetsByTerm.medium, goalsByTerm.medium.value), label: 'Medium-Term (2-5 Years)' },
-            long: { ...calculateRatio(assetsByTerm.long, goalsByTerm.long.value), label: 'Long-Term (> 5 Years)' },
-        };
-    }, [user.goals, user.age, financials.assets]);
+        return [...goals].sort((a, b) => b.target_value - a.target_value);
+    }, [goals]);
+    
+    const age = useMemo(() => {
+        if (!user.date_of_birth) return 18;
+        return new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
+    }, [user.date_of_birth]);
 
     const handleAddGoal = (e: React.FormEvent) => {
         e.preventDefault();
         const goalName = newGoalType === 'Others' ? otherGoalName : newGoalType;
 
         if (goalName && newGoalValue && showFormForAge) {
-            const newGoal: Goal = {
-                id: `goal_${Date.now()}`,
-                name: goalName,
-                targetAge: showFormForAge,
-                value: Number(newGoalValue),
+            const newGoal = {
+                goal_name: goalName,
+                target_age: showFormForAge,
+                target_value: Number(newGoalValue),
             };
             onAddGoal(newGoal);
             setShowFormForAge(null);
@@ -106,9 +56,9 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
         }
     };
     
-    const startAge = user.age || 18;
+    const startAge = age;
     const timelineAges = Array.from({ length: 100 - startAge + 1 }, (_, i) => startAge + i);
-    const hasGoals = user.goals.length > 0;
+    const hasGoals = goals.length > 0;
 
     if (!isOpen) {
         const topGoals = sortedGoals.slice(0, 3);
@@ -124,7 +74,7 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
                     <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Add'}</button>
                 </div>
                 <div className="goals-summary">
-                     {hasGoals ? (
+                     {hasGoals && goalCoverageRatios ? (
                         <>
                             <div className="goal-ratios-container">
                                 <GoalCoverageRatioBar {...goalCoverageRatios.overall} />
@@ -135,24 +85,24 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
                             <div className="goals-summary-container">
                                 <div className={`top-goals-list ${otherGoals.length > 0 ? 'has-more-goals' : ''}`}>
                                     {topGoals.map(goal => (
-                                        <div className="goal-summary-item" key={goal.id}>
+                                        <div className="goal-summary-item" key={goal.goal_id}>
                                             <div className="goal-item-info">
-                                                <span className="goal-item-name">{goal.name}</span>
-                                                <span className="goal-item-time">{goal.targetAge - startAge} years left</span>
+                                                <span className="goal-item-name">{goal.goal_name}</span>
+                                                <span className="goal-item-time">{goal.target_age - startAge} years left</span>
                                             </div>
-                                            <span className="goal-item-value">{formatCurrency(goal.value)}</span>
+                                            <span className="goal-item-value">{formatCurrency(goal.target_value)}</span>
                                         </div>
                                     ))}
                                 </div>
                                 {otherGoals.length > 0 && (
                                     <div className="other-goals-list">
                                         {otherGoals.map(goal => (
-                                            <div className="goal-summary-item" key={goal.id}>
+                                            <div className="goal-summary-item" key={goal.goal_id}>
                                                 <div className="goal-item-info">
-                                                    <span className="goal-item-name">{goal.name}</span>
-                                                    <span className="goal-item-time">{goal.targetAge - startAge} years left</span>
+                                                    <span className="goal-item-name">{goal.goal_name}</span>
+                                                    <span className="goal-item-time">{goal.target_age - startAge} years left</span>
                                                 </div>
-                                                <span className="goal-item-value">{formatCurrency(goal.value)}</span>
+                                                <span className="goal-item-value">{formatCurrency(goal.target_value)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -160,7 +110,9 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
                             </div>
                         </>
                     ) : (
-                        <p style={{ color: '#666', textAlign: 'center', margin: 'auto' }}>No goals added yet.</p>
+                         <div className="summary-placeholder" style={{flexGrow: 1}}>
+                            <p>Add your goals to see how you're tracking.</p>
+                         </div>
                     )}
                 </div>
             </div>
@@ -212,7 +164,7 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
 
                 <div className="goals-list-section">
                     <h3>Your Goals</h3>
-                    {user.goals.length > 0 ? (
+                    {goals.length > 0 ? (
                         <table className="goal-summary-table">
                             <thead>
                                 <tr>
@@ -223,12 +175,12 @@ const FinancialGoalsCard = ({ user, financials, onAddGoal, onRemoveGoal, isOpen,
                                 </tr>
                             </thead>
                             <tbody>
-                                {user.goals.sort((a,b) => a.targetAge - b.targetAge).map(goal => (
-                                    <tr key={goal.id}>
-                                        <td>{goal.name}</td>
-                                        <td>{goal.targetAge - startAge} years</td>
-                                        <td>{formatCurrency(goal.value)}</td>
-                                        <td><button className="delete-goal-btn" onClick={() => onRemoveGoal(goal.id)}>✕</button></td>
+                                {goals.sort((a,b) => a.target_age - b.target_age).map(goal => (
+                                    <tr key={goal.goal_id}>
+                                        <td>{goal.goal_name}</td>
+                                        <td>{goal.target_age - startAge} years</td>
+                                        <td>{formatCurrency(goal.target_value)}</td>
+                                        <td><button className="delete-goal-btn" onClick={() => onRemoveGoal(goal.goal_id)}>✕</button></td>
                                     </tr>
                                 ))}
                             </tbody>

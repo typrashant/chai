@@ -1,76 +1,23 @@
+// This file now acts as the data access layer for our Supabase backend.
+// FIX: Import Database and Json types from supabaseClient to break the circular dependency.
+import { supabase, type Database, type Json } from './SupabaseClient.ts';
+
+// --- Type Definitions based on Supabase Schema ---
+
+// The Database interface has been moved to src/supabaseClient.ts to prevent circular dependencies.
+
+// --- Re-exporting local types for frontend components ---
+export type UserProfile = Database['public']['Tables']['app_users']['Row'];
+export type Goal = Database['public']['Tables']['goals']['Row'];
+
+// These types are for the frontend state management, matching the JSONB structure
 export type Frequency = 'monthly' | 'annual';
-
-export interface FinancialItem {
-  value: number;
-  frequency: Frequency;
-}
-
-export interface Assets {
-  cashInHand: number;
-  savingsAccount: number;
-  fixedDeposit: number;
-  recurringDeposit: number;
-  gold: number;
-  stocks: number;
-  mutualFunds: number;
-  crypto: number;
-  nps: number;
-  ppf: number;
-  pf: number;
-  sukanyaSamriddhi: number;
-  house: number;
-  car: number;
-  otherProperty: number;
-  other: number;
-}
-
-export interface Liabilities {
-  homeLoan: number;
-  personalLoan: number;
-  carLoan: number;
-  creditCard: number;
-  other: number;
-}
-
-export interface Income {
-    salary: FinancialItem;
-    bonus: FinancialItem;
-    business: FinancialItem;
-    rental: FinancialItem;
-    other: FinancialItem;
-}
-
-export interface Expenses {
-    // Housing & Utilities
-    rent: FinancialItem;
-    emi: FinancialItem;
-    utilities: FinancialItem;
-    societyMaintenance: FinancialItem;
-    propertyTax: FinancialItem;
-    // Daily Living
-    groceries: FinancialItem;
-    transport: FinancialItem;
-    // Personal & Family
-    health: FinancialItem;
-    education: FinancialItem;
-    insurancePremiums: FinancialItem;
-    clothing: FinancialItem;
-    // Lifestyle
-    diningOut: FinancialItem;
-    entertainment: FinancialItem;
-    subscriptions: FinancialItem;
-    vacation: FinancialItem;
-    // Other
-    other: FinancialItem;
-}
-
-export interface Insurance {
-    life: number;
-    health: number;
-    car: number;
-    property: number;
-}
-
+export interface FinancialItem { value: number; frequency: Frequency; }
+export interface Assets { [key: string]: number }
+export interface Liabilities { [key: string]: number }
+export interface Income { [key: string]: FinancialItem }
+export interface Expenses { [key: string]: FinancialItem }
+export interface Insurance { [key: string]: number }
 export interface Financials {
     assets: Assets;
     liabilities: Liabilities;
@@ -79,140 +26,191 @@ export interface Financials {
     insurance: Insurance;
 }
 
-export interface Goal {
-    id: string;
-    name: string;
-    targetAge: number;
-    value: number;
-}
+// --- Data Access Functions ---
 
-export interface User {
-  clientID: string;
-  name: string;
-  phone: string;
-  points: number;
-  persona?: string;
-  financials?: Financials;
-  age?: number;
-  gender?: string;
-  profession?: 'Salaried' | 'Self-employed';
-  goals: Goal[];
-  dependents?: number;
-  pointsSource?: {
-      netWorth?: boolean;
-      monthlyFinances?: boolean;
-      financialProtection?: boolean;
-      financialGoals?: boolean;
-      personaQuiz?: boolean;
-  }
-}
-
-// In-memory store that is cleared on page reload.
-const users = new Map<string, User>();
 let userCounter = 0;
-
 const generateClientID = (): string => {
   userCounter++;
-  const yearMonth = '2407'; // July 2024
+  const yearMonth = '2407';
   const sequence = String(userCounter).padStart(7, '0');
   return `IN${yearMonth}${sequence}`;
 };
 
-export const createUser = (name: string, phone: string): User | null => {
-  if (Array.from(users.values()).some(user => user.phone === phone)) {
-    return null; // User already exists in this session
-  }
-
-  const clientID = generateClientID();
-  const newUser: User = { clientID, name, phone, points: 70, goals: [] };
-  users.set(clientID, newUser);
-  return newUser;
-};
-
-export const findUserByPhone = (phone: string): User | undefined => {
-  return Array.from(users.values()).find(user => user.phone === phone);
-};
-
-export const findUserByClientID = (clientID: string): User | undefined => {
-  return users.get(clientID);
-};
-
-export const updateUserFinancials = (clientID: string, financials: Financials): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const updatedUser = { ...user, financials };
-        users.set(clientID, updatedUser);
-        return updatedUser;
-    }
-    return null;
-}
-
-export const updateUserDemographics = (clientID: string, age: number, gender: string, dependents: number, profession: 'Salaried' | 'Self-employed'): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const updatedUser = { 
-            ...user, 
-            age, 
+export const createNewUserProfile = async (
+  user_id: string,
+  name: string,
+  phone_number: string,
+  dob: string,
+  gender: string,
+  dependents: number,
+  profession: string
+): Promise<UserProfile | null> => {
+    const client_id = generateClientID(); // This should be made more robust in production
+    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    const { data, error } = await supabase
+        .from('app_users')
+        .insert({
+            user_id,
+            name,
+            phone_number,
+            client_id,
+            date_of_birth: dob,
             gender,
             dependents,
             profession,
-        };
-        users.set(clientID, updatedUser);
-        return updatedUser;
+        })
+        .select()
+        .single();
+        
+    if (error) {
+        console.error('Error creating user profile:', error);
+        return null;
     }
-    return null;
+    return data;
 }
 
-export const updateUserPersona = (clientID: string, persona: string): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const updatedUser = { 
-            ...user, 
-            persona
-        };
-        users.set(clientID, updatedUser);
-        return updatedUser;
+export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('user_id', user_id)
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // Ignore 'PGRST116' (No rows found)
+        console.error('Error fetching user profile:', error);
     }
-    return null;
+    return data;
 }
 
-export const awardPoints = (clientID: string, source: string, points: number): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const pointsSource = user.pointsSource || {};
-        if (pointsSource[source as keyof typeof pointsSource]) {
-            return user; // Points already awarded for this source
-        }
+export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
+    const { data, error } = await supabase
+        .from('financial_snapshots')
+        .select('*')
+        .eq('user_id', user_id)
+        .order('snapshot_date', { ascending: false })
+        .limit(1)
+        .single();
 
-        const updatedUser = {
-            ...user,
-            points: user.points + points,
-            pointsSource: { ...pointsSource, [source]: true }
-        };
-        users.set(clientID, updatedUser);
-        return updatedUser;
+    if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching latest financial snapshot:', error);
     }
-    return null;
+    
+    if (!data) return null;
+
+    // Supabase returns JSONB columns as objects, which match our Financials type
+    // FIX: With corrected types, `data` is no longer `never`, and its properties can be safely accessed.
+    return {
+        assets: data.assets as Assets,
+        liabilities: data.liabilities as Liabilities,
+        income: data.income as Income,
+        expenses: data.expenses as Expenses,
+        insurance: data.insurance as Insurance
+    };
 }
 
-export const addUserGoal = (clientID: string, goal: Goal): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const updatedGoals = [...user.goals, goal];
-        const updatedUser = { ...user, goals: updatedGoals };
-        users.set(clientID, updatedUser);
-        return updatedUser;
+export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
+    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    const { error } = await supabase
+        .from('financial_snapshots')
+        .insert({
+            user_id,
+            assets: financials.assets,
+            liabilities: financials.liabilities,
+            income: financials.income,
+            expenses: financials.expenses,
+            insurance: financials.insurance,
+        });
+
+    if (error) {
+        console.error('Error creating financial snapshot:', error);
+        return false;
     }
-    return null;
+    return true;
 }
 
-export const removeUserGoal = (clientID: string, goalId: string): User | null => {
-    const user = users.get(clientID);
-    if (user) {
-        const updatedGoals = user.goals.filter(g => g.id !== goalId);
-        const updatedUser = { ...user, goals: updatedGoals };
-        users.set(clientID, updatedUser);
-        return updatedUser;
+export const updateUserPersona = async (user_id: string, persona: string): Promise<UserProfile | null> => {
+    // FIX: With corrected types from Supabase client, this update operation is now type-safe.
+    const { data, error } = await supabase
+        .from('app_users')
+        .update({ persona, updated_at: new Date().toISOString() })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error('Error updating persona:', error);
+        return null;
     }
-    return null;
+    return data;
+}
+
+export const awardPoints = async (user_id: string, source: string, pointsToAdd: number, currentProfile: UserProfile): Promise<UserProfile | null> => {
+    const currentPointsSource = (currentProfile.points_source as { [key: string]: boolean }) || {};
+    
+    if (currentPointsSource[source]) {
+        return currentProfile; // Points already awarded
+    }
+    
+    const newPoints = currentProfile.points + pointsToAdd;
+    const newPointsSource = { ...currentPointsSource, [source]: true };
+    
+    // FIX: With corrected types from Supabase client, this update operation is now type-safe.
+    const { data, error } = await supabase
+        .from('app_users')
+        .update({ points: newPoints, points_source: newPointsSource })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error('Error awarding points:', error);
+        return null;
+    }
+    return data;
+}
+
+export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
+    const { data, error } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user_id);
+
+    if (error) {
+        console.error('Error fetching goals:', error);
+        return [];
+    }
+    return data || [];
+}
+
+export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>): Promise<Goal | null> => {
+    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    const { data, error } = await supabase
+        .from('goals')
+        .insert({
+            user_id,
+            goal_name: goal.goal_name,
+            target_age: goal.target_age,
+            target_value: goal.target_value,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error adding goal:', error);
+        return null;
+    }
+    return data;
+}
+
+export const removeUserGoal = async (goal_id: string): Promise<boolean> => {
+    const { error } = await supabase
+        .from('goals')
+        .delete()
+        .eq('goal_id', goal_id);
+    
+    if (error) {
+        console.error('Error deleting goal:', error);
+        return false;
+    }
+    return true;
 }
