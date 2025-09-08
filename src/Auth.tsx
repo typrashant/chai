@@ -68,6 +68,12 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
 
     const fullPhoneNumber = `+91${phone}`;
 
+    if (!supabase) {
+      setError('Supabase is not configured.');
+      setIsLoading(false);
+      return;
+    }
+    // Now safe to use supabase
     const { error } = await supabase.auth.signInWithOtp({
       phone: fullPhoneNumber,
     });
