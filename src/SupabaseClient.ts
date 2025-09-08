@@ -1,8 +1,11 @@
+// FIX: Add a triple-slash directive to include Vite's client types. This makes TypeScript aware of `import.meta.env` and resolves errors about the 'env' property not existing on `ImportMeta`.
+/// <reference types="vite/client" />
+
 import { createClient } from '@supabase/supabase-js';
 
-// Reads the Supabase URL and Key from environment variables.
-const supabaseUrl = process.env.SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? '';
+// Reads the Supabase URL and Key from Vite's environment variables.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Defines the TypeScript interface for your entire database schema.
 // This provides static type checking and autocompletion for all your database operations.
