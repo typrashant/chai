@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -147,19 +149,19 @@ const SupabaseConfigError = () => (
     <div className="container" style={{ padding: '2rem', textAlign: 'center' }}>
         <h1 style={{ color: 'var(--red)', marginBottom: '1rem' }}>Configuration Needed</h1>
         <p style={{ marginBottom: '1.5rem', lineHeight: '1.6' }}>
-            Your Supabase connection details are missing. Please add your Project URL and Anon Key
-            to the <strong>Secrets</strong> panel.
+            Your Supabase connection details are missing. For deployment via GitHub, you must add your keys as <strong>Environment Variables</strong> on your hosting provider (e.g., Vercel, Netlify).
         </p>
         <div style={{ textAlign: 'left', backgroundColor: 'var(--background-color)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ marginBottom: '1rem' }}>How to add secrets:</h3>
+            <h3 style={{ marginBottom: '1rem' }}>How to add environment variables:</h3>
             <ol style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <li>Find the <strong>Secrets</strong> tab in the left-hand menu of the editor (it looks like a key icon).</li>
-                <li>Add two new secrets:</li>
+                <li>Go to your project's dashboard on your hosting provider.</li>
+                <li>Find the <strong>Settings</strong> page, then look for <strong>Environment Variables</strong>.</li>
+                <li>Add two new variables. <strong>The names must be exact and include the `VITE_` prefix:</strong></li>
                 <ul style={{ paddingLeft: '1.5rem', listStyle: 'circle', margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUPABASE_URL</code>, Value: Your Supabase Project URL</li>
-                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUPABASE_ANON_KEY</code>, Value: Your Supabase Anon Key</li>
+                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>VITE_SUPABASE_URL</code>, Value: Your Supabase Project URL</li>
+                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>VITE_SUPABASE_ANON_KEY</code>, Value: Your Supabase Anon Key</li>
                 </ul>
-                <li>After adding the secrets, refresh the app preview.</li>
+                <li>After saving, you must <strong>re-deploy</strong> your project to apply the changes.</li>
                  <li>You can find your keys in your Supabase project's <strong>Settings &gt; API</strong> section.</li>
             </ol>
         </div>
@@ -181,14 +183,11 @@ const App = () => {
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
-  useEffect(() => {
+    useEffect(() => {
     if (!supabase) return;
 
     const checkUser = async () => {
-        if (!supabase) {
-            setIsLoading(false);
-            return;
-        }
+        if (!supabase) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);

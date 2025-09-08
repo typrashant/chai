@@ -1,3 +1,5 @@
+
+
 // This file now acts as the data access layer for our Supabase backend.
 import { supabase, type Database, type Json } from './SupabaseClient.ts';
 
@@ -95,27 +97,29 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
     if (!data) return null;
 
     // Supabase returns JSONB columns as objects, which match our Financials type
+    // FIX: Cast through `unknown` to assert the specific shape of the JSONB data, as TypeScript cannot directly convert the broad `Json` type to our specific interfaces.
     return {
-        assets: data.assets as Assets,
-        liabilities: data.liabilities as Liabilities,
+        assets: data.assets as unknown as Assets,
+        liabilities: data.liabilities as unknown as Liabilities,
         income: data.income as unknown as Income,
         expenses: data.expenses as unknown as Expenses,
-        insurance: data.insurance as Insurance
+        insurance: data.insurance as unknown as Insurance
     };
 }
 
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
+    // FIX: The supabase client `insert` method expects the JSONB columns to be of type `Json`. Our `Financials` type is more specific, causing a type mismatch. We cast the properties to `Json` via `unknown` to satisfy the client's type requirements.
     const { error } = await supabase
         .from('financial_snapshots')
-        .insert([{
+        .insert({
             user_id,
-            assets: financials.assets,
-            liabilities: financials.liabilities,
-            income: financials.income,
-            expenses: financials.expenses,
-            insurance: financials.insurance,
-        } as any]);
+            assets: financials.assets as unknown as Json,
+            liabilities: financials.liabilities as unknown as Json,
+            income: financials.income as unknown as Json,
+            expenses: financials.expenses as unknown as Json,
+            insurance: financials.insurance as unknown as Json,
+        });
 
     if (error) {
         console.error('Error creating financial snapshot:', error);
