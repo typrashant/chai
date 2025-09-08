@@ -4,7 +4,6 @@ const URLS_TO_CACHE = [
   '/index.html',
   '/manifest.json',
   '/sw.js',
-  '/schema.meta',
   '/src/main.tsx',
   '/src/App.tsx',
   '/src/index.css',
@@ -22,7 +21,7 @@ const URLS_TO_CACHE = [
   '/src/PowerOfSavingCard.tsx',
   '/src/MyPlan.tsx',
   '/src/icons.tsx',
-  '/src/supabaseClient.ts',
+  '/src/SupabaseClient.ts',
   '/icon-192x192.png',
   '/icon-512x512.png'
 ];
