@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
+import { supabase, isSupabaseConfigured } from './supabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
@@ -67,6 +68,7 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
         const monthlyIncome = Object.values(income || {}).reduce((sum, item) => item ? sum + (item.frequency === 'monthly' ? item.value : item.value / 12) : sum, 0);
         const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => item ? sum + (item.frequency === 'monthly' ? item.value : item.value / 12) : sum, 0);
+        const monthlySavings = monthlyIncome - monthlyExpenses;
         const netWorth = totalAssets - totalLiabilities;
         const investableAssetKeys: string[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
         
@@ -139,7 +141,7 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         const equityAssets = Number(assets.stocks || 0) + Number(assets.mutualFunds || 0) + Number(assets.crypto || 0);
         const equityAllocationPercentage = financialAssets > 0 ? (equityAssets / financialAssets) * 100 : 0;
 
-        return { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage };
+        return { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage, monthlyIncome, monthlyExpenses, monthlySavings };
     }, [financials, user, goals]);
 }
 
@@ -182,13 +184,12 @@ const App = () => {
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+        setIsLoading(false);
+        return;
+    }
 
     const checkUser = async () => {
-        if (!supabase) {
-            setIsLoading(false);
-            return;
-        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
@@ -341,9 +342,37 @@ const App = () => {
                 {isMonthlyFinancesOpen ? (
                     <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
                 ) : (
-                    <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
+                    <div className="card summary-card">
+                        <div className="summary-card-header">
+                            <div className="summary-card-title-group">
+                                <h2>Monthly Cashflow</h2>
+                                {!hasCompleted('monthlyFinances') && <div className="potential-points">✨ {REWARD_POINTS.monthlyFinances} Points</div>}
+                            </div>
+                            <button className="update-button" onClick={() => setIsMonthlyFinancesOpen(true)}>{hasCompleted('monthlyFinances') ? 'Update' : 'Calculate'}</button>
+                        </div>
+                        {hasCompleted('monthlyFinances') ? (
+                             <div className="cashflow-absolute-summary" style={{margin: 'auto 0'}}>
+                                <div className="summary-item">
+                                    <span>Income</span>
+                                    <strong>{formatCurrency(metrics.monthlyIncome || 0)}</strong>
+                                </div>
+                                <div className="summary-item">
+                                    <span>Expenses</span>
+                                    <strong>{formatCurrency(metrics.monthlyExpenses || 0)}</strong>
+                                </div>
+                                 <div className="summary-item">
+                                    <span>Savings</span>
+                                    <strong>{formatCurrency(metrics.monthlySavings || 0)}</strong>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="summary-placeholder"><p>Track your income and expenses to see your cashflow.</p></div>
+                        )}
+                    </div>
                 )}
                 
+                <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
+
                 <FinancialHealthCard ratios={metrics.healthRatios} />
 
                 <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
