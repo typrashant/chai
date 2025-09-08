@@ -1,12 +1,7 @@
 // This file now acts as the data access layer for our Supabase backend.
-// FIX: Import Database and Json types from supabaseClient to break the circular dependency.
 import { supabase, type Database, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
-
-// The Database interface has been moved to src/supabaseClient.ts to prevent circular dependencies.
-
-// --- Re-exporting local types for frontend components ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
 export type Goal = Database['public']['Tables']['goals']['Row'];
 
@@ -45,8 +40,8 @@ export const createNewUserProfile = async (
   dependents: number,
   profession: string
 ): Promise<UserProfile | null> => {
-    const client_id = generateClientID(); // This should be made more robust in production
-    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    if (!supabase) return null;
+    const client_id = generateClientID(); 
     const { data, error } = await supabase
         .from('app_users')
         .insert({
@@ -70,6 +65,7 @@ export const createNewUserProfile = async (
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
     const { data, error } = await supabase
         .from('app_users')
         .select('*')
@@ -83,6 +79,7 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
 }
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
+    if (!supabase) return null;
     const { data, error } = await supabase
         .from('financial_snapshots')
         .select('*')
@@ -98,28 +95,27 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
     if (!data) return null;
 
     // Supabase returns JSONB columns as objects, which match our Financials type
-    // FIX: With corrected types, `data` is no longer `never`, and its properties can be safely accessed.
     return {
         assets: data.assets as Assets,
         liabilities: data.liabilities as Liabilities,
-        income: data.income as Income,
-        expenses: data.expenses as Expenses,
+        income: data.income as unknown as Income,
+        expenses: data.expenses as unknown as Expenses,
         insurance: data.insurance as Insurance
     };
 }
 
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
-    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    if (!supabase) return false;
     const { error } = await supabase
         .from('financial_snapshots')
-        .insert({
+        .insert([{
             user_id,
             assets: financials.assets,
             liabilities: financials.liabilities,
             income: financials.income,
             expenses: financials.expenses,
             insurance: financials.insurance,
-        });
+        } as any]);
 
     if (error) {
         console.error('Error creating financial snapshot:', error);
@@ -129,7 +125,7 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
 }
 
 export const updateUserPersona = async (user_id: string, persona: string): Promise<UserProfile | null> => {
-    // FIX: With corrected types from Supabase client, this update operation is now type-safe.
+    if (!supabase) return null;
     const { data, error } = await supabase
         .from('app_users')
         .update({ persona, updated_at: new Date().toISOString() })
@@ -145,6 +141,7 @@ export const updateUserPersona = async (user_id: string, persona: string): Promi
 }
 
 export const awardPoints = async (user_id: string, source: string, pointsToAdd: number, currentProfile: UserProfile): Promise<UserProfile | null> => {
+    if (!supabase) return null;
     const currentPointsSource = (currentProfile.points_source as { [key: string]: boolean }) || {};
     
     if (currentPointsSource[source]) {
@@ -154,7 +151,6 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
     const newPoints = currentProfile.points + pointsToAdd;
     const newPointsSource = { ...currentPointsSource, [source]: true };
     
-    // FIX: With corrected types from Supabase client, this update operation is now type-safe.
     const { data, error } = await supabase
         .from('app_users')
         .update({ points: newPoints, points_source: newPointsSource })
@@ -170,6 +166,7 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
+    if (!supabase) return [];
     const { data, error } = await supabase
         .from('goals')
         .select('*')
@@ -183,7 +180,7 @@ export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
 }
 
 export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>): Promise<Goal | null> => {
-    // FIX: With corrected types from Supabase client, this insert operation is now type-safe.
+    if (!supabase) return null;
     const { data, error } = await supabase
         .from('goals')
         .insert({
@@ -203,6 +200,7 @@ export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 
 }
 
 export const removeUserGoal = async (goal_id: string): Promise<boolean> => {
+    if (!supabase) return false;
     const { error } = await supabase
         .from('goals')
         .delete()

@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { type Income, type Expenses, type Financials, type Frequency, type FinancialItem } from './db';
 

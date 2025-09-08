@@ -1,12 +1,11 @@
-
 import { createClient } from '@supabase/supabase-js';
 
-// IMPORTANT: Replace with your actual Supabase project URL and anon key
-const supabaseUrl = 'https://ryvuoxbgqonrjzsilfmf.supabase.co'; // e.g., 'https://xyz.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dnVveGJncW9ucmp6c2lsZm1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDQ4NzMsImV4cCI6MjA3MjgyMDg3M30.1JWpM6XjveLbDO0g6zKW5eDkF7ILri6f4UoVpTjIRjY'; // The long string from the API settings
+// Reads the Supabase URL and Key from environment variables.
+const supabaseUrl = process.env.SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? '';
 
-// FIX: Moved Database interface and Json type here from src/db.ts to break a circular dependency.
-// This ensures the Supabase client is correctly typed.
+// Defines the TypeScript interface for your entire database schema.
+// This provides static type checking and autocompletion for all your database operations.
 export interface Database {
   public: {
     Tables: {
@@ -50,6 +49,8 @@ export interface Database {
           points_source?: Json;
           updated_at?: string;
         };
+        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
+        Relationships: [];
       };
       financial_snapshots: {
         Row: {
@@ -71,6 +72,8 @@ export interface Database {
           insurance?: Json | null;
         };
         Update: {}; // Snapshots are typically immutable
+        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
+        Relationships: [];
       };
       goals: {
         Row: {
@@ -95,23 +98,8 @@ export interface Database {
           target_value?: number;
           is_achieved?: boolean;
         };
-      };
-      user_personas: {
-        Row: {
-          persona_id: number;
-          user_id: string;
-          persona_name: string;
-          risk_score: number | null;
-          discipline_score: number | null;
-          assigned_at: string;
-        };
-        Insert: {
-          user_id: string;
-          persona_name: string;
-          risk_score?: number | null;
-          discipline_score?: number | null;
-        };
-        Update: {}; // Personas are typically immutable
+        // FIX: Added missing Relationships property to satisfy Supabase's internal types.
+        Relationships: [];
       };
     };
     Views: {
@@ -138,14 +126,10 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export const isSupabaseConfigured =
-  supabaseUrl &&
-  supabaseUrl !== 'https://ryvuoxbgqonrjzsilfmf.supabase.co' &&
-  supabaseAnonKey &&
-  supabaseAnonKey !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dnVveGJncW9ucmp6c2lsZm1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDQ4NzMsImV4cCI6MjA3MjgyMDg3M30.1JWpM6XjveLbDO0g6zKW5eDkF7ILri6f4UoVpTjIRjY';
+// A simpler, more reliable check for whether the secrets have been provided.
+export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
-// Only create a client if the config is valid, otherwise export null
-// This prevents the app from crashing on an invalid URL.
+// Only create a client if the config is valid, otherwise export null.
 export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl, supabaseAnonKey)
   : null;

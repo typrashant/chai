@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { type Goal, type UserProfile } from './db';
+import { type Goal, type UserProfile } from './db.ts';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);

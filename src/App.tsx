@@ -58,7 +58,7 @@ const initialFinancials: Financials = {
 // This custom hook centralizes all financial calculations.
 const useFinancialMetrics = (financials: Financials | null, user: UserProfile | null, goals: Goal[] | null) => {
     return useMemo(() => {
-        if (!user || !financials || !goals) return null;
+        if (!user || !financials || !goals || !user.date_of_birth) return null;
 
         const age = new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
         const { assets, liabilities, income, expenses, insurance } = financials;
@@ -147,19 +147,20 @@ const SupabaseConfigError = () => (
     <div className="container" style={{ padding: '2rem', textAlign: 'center' }}>
         <h1 style={{ color: 'var(--red)', marginBottom: '1rem' }}>Configuration Needed</h1>
         <p style={{ marginBottom: '1.5rem', lineHeight: '1.6' }}>
-            Your Supabase connection details are missing. Please add your Project URL and Anon Key to the
-            <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px', margin: '0 0.2rem' }}>
-                src/supabaseClient.ts
-            </code> file.
+            Your Supabase connection details are missing. Please add your Project URL and Anon Key
+            to the <strong>Secrets</strong> panel.
         </p>
         <div style={{ textAlign: 'left', backgroundColor: 'var(--background-color)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Where to find your keys:</h3>
+            <h3 style={{ marginBottom: '1rem' }}>How to add secrets:</h3>
             <ol style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <li>Go to your project on the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)' }}>Supabase Dashboard</a>.</li>
-                <li>In the left sidebar, click on the <strong>Settings</strong> icon (the cogwheel).</li>
-                <li>Click on <strong>API</strong> in the list.</li>
-                <li>You will see your <strong>Project URL</strong> and a <strong>Project API Key</strong> (this is the `anon` key).</li>
-                <li>Copy these two values and paste them into `src/supabaseClient.ts`.</li>
+                <li>Find the <strong>Secrets</strong> tab in the left-hand menu of the editor (it looks like a key icon).</li>
+                <li>Add two new secrets:</li>
+                <ul style={{ paddingLeft: '1.5rem', listStyle: 'circle', margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUPABASE_URL</code>, Value: Your Supabase Project URL</li>
+                    <li>Name: <code style={{ backgroundColor: 'var(--background-color)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUPABASE_ANON_KEY</code>, Value: Your Supabase Anon Key</li>
+                </ul>
+                <li>After adding the secrets, refresh the app preview.</li>
+                 <li>You can find your keys in your Supabase project's <strong>Settings &gt; API</strong> section.</li>
             </ol>
         </div>
     </div>
@@ -181,7 +182,7 @@ const App = () => {
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
   useEffect(() => {
-    if (!supabase) return; // Don't run if supabase isn't configured
+    if (!supabase) return;
 
     const checkUser = async () => {
         if (!supabase) {
@@ -218,7 +219,7 @@ const App = () => {
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
       const updatedUser = await updateUserPersona(user.user_id, persona);
       if (updatedUser) {
-          handleAwardPoints('personaQuiz', document.body, 30); // Award points for quiz
+          handleAwardPoints('personaQuiz', document.body, 30);
           setCurrentUser(updatedUser);
       }
   }

@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
-import { type User, updateUserPersona, awardPoints } from './db';
+import { type UserProfile } from './db.ts';
 
 interface PersonaQuizProps {
-  user: User;
-  onQuizComplete: (user: User) => void;
+  user: UserProfile;
+  onQuizComplete: (user: UserProfile, persona: string) => void;
 }
 
 const quizQuestions = [
@@ -50,24 +51,12 @@ const quizQuestions = [
 ];
 
 const personaTypes = {
-    Guardian: {
-        description: "You are a meticulous planner who prioritizes capital preservation. Your financial strategy is built on safety, security, and predictable outcomes.",
-    },
-    Planner: {
-        description: "You are goal-oriented and methodical. You follow a well-defined financial plan, balancing growth and security to achieve your long-term objectives.",
-    },
-    Adventurer: {
-        description: "You are a calculated risk-taker. You thoroughly research high-growth opportunities and strategically add them to your portfolio to maximize returns.",
-    },
-    Spender: {
-        description: "You prioritize your present lifestyle and tend to live in the moment. You prefer keeping your money accessible rather than planning for the distant future.",
-    },
-    Seeker: {
-        description: "You are interested in growing your money but lack a concrete strategy. You might have a mix of investments but are looking for guidance to create a more structured plan.",
-    },
-    Accumulator: {
-        description: "You are an optimistic and spontaneous investor, often drawn to the excitement of high-growth trends. You are motivated by potential big wins but may lack a formal long-term strategy.",
-    }
+    Guardian: { description: "You are a meticulous planner who prioritizes capital preservation. Your financial strategy is built on safety, security, and predictable outcomes." },
+    Planner: { description: "You are goal-oriented and methodical. You follow a well-defined financial plan, balancing growth and security to achieve your long-term objectives." },
+    Adventurer: { description: "You are a calculated risk-taker. You thoroughly research high-growth opportunities and strategically add them to your portfolio to maximize returns." },
+    Spender: { description: "You prioritize your present lifestyle and tend to live in the moment. You prefer keeping your money accessible rather than planning for the distant future." },
+    Seeker: { description: "You are interested in growing your money but lack a concrete strategy. You might have a mix of investments but are looking for guidance to create a more structured plan." },
+    Accumulator: { description: "You are an optimistic and spontaneous investor, often drawn to the excitement of high-growth trends. You are motivated by potential big wins but may lack a formal long-term strategy." }
 };
 
 const POINTS_FOR_COMPLETION = 30;
@@ -78,7 +67,7 @@ const PersonaQuiz: React.FC<PersonaQuizProps> = ({ user, onQuizComplete }) => {
   const [disciplineScore, setDisciplineScore] = useState(0);
   const [isQuizFinished, setIsQuizFinished] = useState(false);
   const [persona, setPersona] = useState('');
-  const [updatedUser, setUpdatedUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAnswerClick = (value: { risk: number; discipline: number }) => {
     const newRiskScore = riskScore + value.risk;
@@ -95,34 +84,24 @@ const PersonaQuiz: React.FC<PersonaQuizProps> = ({ user, onQuizComplete }) => {
 
   const finishQuiz = (finalRiskScore: number, finalDisciplineScore: number) => {
     let finalPersona: keyof typeof personaTypes;
-
-    if (finalDisciplineScore > 0) { // High Discipline
-        if (finalRiskScore > 1) {
-            finalPersona = 'Adventurer';
-        } else if (finalRiskScore < -1) {
-            finalPersona = 'Guardian';
-        } else {
-            finalPersona = 'Planner';
-        }
-    } else { // Low Discipline
-        if (finalRiskScore > 1) {
-            finalPersona = 'Accumulator';
-        } else if (finalRiskScore < -1) {
-            finalPersona = 'Spender';
-        } else {
-            finalPersona = 'Seeker';
-        }
+    if (finalDisciplineScore > 0) {
+        if (finalRiskScore > 1) finalPersona = 'Adventurer';
+        else if (finalRiskScore < -1) finalPersona = 'Guardian';
+        else finalPersona = 'Planner';
+    } else {
+        if (finalRiskScore > 1) finalPersona = 'Accumulator';
+        else if (finalRiskScore < -1) finalPersona = 'Spender';
+        else finalPersona = 'Seeker';
     }
-    
     setPersona(finalPersona);
-    updateUserPersona(user.clientID, finalPersona);
-    const finalUpdatedUser = awardPoints(user.clientID, 'personaQuiz', POINTS_FOR_COMPLETION);
-    
-    if(finalUpdatedUser) {
-        setUpdatedUser(finalUpdatedUser);
-        setIsQuizFinished(true);
-    }
+    setIsQuizFinished(true);
   };
+
+  const handleContinue = async () => {
+      setIsLoading(true);
+      await onQuizComplete(user, persona);
+      setIsLoading(false);
+  }
 
   if (isQuizFinished) {
     return (
@@ -132,8 +111,8 @@ const PersonaQuiz: React.FC<PersonaQuizProps> = ({ user, onQuizComplete }) => {
             <h2>{persona}</h2>
             <p>{personaTypes[persona as keyof typeof personaTypes].description}</p>
             <p className="points-earned">✨ You've earned {POINTS_FOR_COMPLETION} points! ✨</p>
-            <button className="auth-button" onClick={() => updatedUser && onQuizComplete(updatedUser)}>
-                Continue to Dashboard
+            <button className="auth-button" onClick={handleContinue} disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Continue to Dashboard'}
             </button>
         </div>
       </div>
