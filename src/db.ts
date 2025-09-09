@@ -1,7 +1,5 @@
-
-
 // This file now acts as the data access layer for our Supabase backend.
-import supabase, { type Database, type Json } from './SupabaseClient.ts';
+import { supabase, type Database, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];

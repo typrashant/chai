@@ -140,8 +140,6 @@ export type Json =
 // (Removed duplicate declaration of isSupabaseConfigured)
 
 // Only create a client if the config is valid, otherwise export null.
-const supabase = isSupabaseConfigured
+export const supabase = isSupabaseConfigured
   ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string)
   : null;
-
-export default supabase;

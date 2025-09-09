@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import supabase, { isSupabaseConfigured } from './SupabaseClient.ts';
+import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
