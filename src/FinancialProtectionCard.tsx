@@ -1,21 +1,11 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { type Financials, type Insurance } from './db';
-
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
-};
 
 type RagStatus = 'green' | 'amber' | 'red';
 const getRagColor = (status: RagStatus) => {
     if (status === 'green') return 'var(--green)';
     if (status === 'amber') return 'var(--amber)';
     return 'var(--red)';
-};
-
-const getRagStatus = (value: number, green: number, amber: number): RagStatus => {
-  if (value >= green) return 'green';
-  if (value >= amber) return 'amber';
-  return 'red';
 };
 
 const ProtectionItem = ({ title, score, status }: { title: string; score: number; status: RagStatus; }) => (
@@ -28,7 +18,7 @@ const ProtectionItem = ({ title, score, status }: { title: string; score: number
     </div>
 );
 
-const FinancialProtectionCard = ({ financials, userAge, onUpdate, isOpen, onToggle, isCompleted, potentialPoints }: { financials: Financials; userAge: number | undefined; onUpdate: (data: Insurance) => void; isOpen: boolean; onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void; isCompleted: boolean; potentialPoints: number; }) => {
+const FinancialProtectionCard = ({ financials, protectionScores, onUpdate, isOpen, onToggle, isCompleted, potentialPoints }: { financials: Financials; protectionScores: any; onUpdate: (data: Insurance) => void; isOpen: boolean; onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void; isCompleted: boolean; potentialPoints: number; }) => {
     const handleInsuranceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         onUpdate({ ...financials.insurance, [id]: Number(value) || 0 });
@@ -46,37 +36,6 @@ const FinancialProtectionCard = ({ financials, userAge, onUpdate, isOpen, onTogg
         onUpdate({ ...financials.insurance, [type]: newValue });
     };
 
-    const protectionScores = useMemo(() => {
-        const annualIncome = Object.values(financials.income).reduce((sum, item) => {
-            if (!item) return sum;
-            return sum + (item.frequency === 'monthly' ? item.value * 12 : item.value);
-        }, 0);
-
-        const { life, health, car, property } = financials.insurance;
-
-        // Life Insurance: Recommended 10x annual income
-        const lifeTarget = annualIncome * 10;
-        const lifeScore = lifeTarget > 0 ? (life / lifeTarget) * 100 : (life > 0 ? 100 : 0);
-
-        // Health Insurance: Recommended base of 15 Lakhs
-        const healthTarget = 1500000;
-        const healthScore = (health / healthTarget) * 100;
-        
-        // Car/Property: Basic check if user has asset vs insurance
-        const carAssetValue = financials.assets.car || 0;
-        const propertyAssetValue = (financials.assets.house || 0) + (financials.assets.otherProperty || 0);
-
-        const carScore = carAssetValue > 0 ? (car > 0 ? 100 : 0) : 100;
-        const propertyScore = propertyAssetValue > 0 ? (property > 0 ? 100 : 0) : 100;
-
-        return {
-            life: { score: lifeScore, status: getRagStatus(lifeScore, 90, 50) },
-            health: { score: healthScore, status: getRagStatus(healthScore, 90, 50) },
-            car: { score: carScore, status: getRagStatus(carScore, 99, 0) },
-            property: { score: propertyScore, status: getRagStatus(propertyScore, 99, 0) },
-        };
-    }, [financials]);
-
     if (!isOpen) {
         return (
             <div className="card summary-card">
@@ -89,7 +48,7 @@ const FinancialProtectionCard = ({ financials, userAge, onUpdate, isOpen, onTogg
                         <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>
                     </div>
                 </div>
-                {isCompleted ? (
+                {isCompleted && protectionScores ? (
                     <div className="protection-summary">
                         <ProtectionItem title="Life Protection" {...protectionScores.life} />
                         <ProtectionItem title="Health Protection" {...protectionScores.health} />

@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
+import supabase, { isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
@@ -72,7 +73,7 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         const netWorth = totalAssets - totalLiabilities;
         const investableAssetKeys: string[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
         
-        const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key] || 0), 0);
+        const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key as keyof Assets] || 0), 0);
         const liquidAssets = Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0);
         const annualIncome = monthlyIncome * 12;
         

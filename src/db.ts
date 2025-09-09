@@ -1,7 +1,7 @@
 
 
 // This file now acts as the data access layer for our Supabase backend.
-import { supabase, type Database, type Json } from './SupabaseClient.ts';
+import supabase, { type Database, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
@@ -10,11 +10,69 @@ export type Goal = Database['public']['Tables']['goals']['Row'];
 // These types are for the frontend state management, matching the JSONB structure
 export type Frequency = 'monthly' | 'annual';
 export interface FinancialItem { value: number; frequency: Frequency; }
-export interface Assets { [key: string]: number }
-export interface Liabilities { [key: string]: number }
-export interface Income { [key: string]: FinancialItem }
-export interface Expenses { [key: string]: FinancialItem }
-export interface Insurance { [key: string]: number }
+
+// FIX: Replaced generic index signatures with explicit properties for stronger type safety.
+// This ensures that data structures are well-defined throughout the app, resolving multiple 'unknown' type errors.
+export interface Assets {
+    cashInHand: number;
+    savingsAccount: number;
+    fixedDeposit: number;
+    recurringDeposit: number;
+    gold: number;
+    stocks: number;
+    mutualFunds: number;
+    crypto: number;
+    nps: number;
+    ppf: number;
+    pf: number;
+    sukanyaSamriddhi: number;
+    house: number;
+    car: number;
+    otherProperty: number;
+    other: number;
+}
+
+export interface Liabilities {
+    homeLoan: number;
+    personalLoan: number;
+    carLoan: number;
+    creditCard: number;
+    other: number;
+}
+
+export interface Income {
+    salary: FinancialItem;
+    bonus: FinancialItem;
+    business: FinancialItem;
+    rental: FinancialItem;
+    other: FinancialItem;
+}
+
+export interface Expenses {
+    rent: FinancialItem;
+    emi: FinancialItem;
+    utilities: FinancialItem;
+    societyMaintenance: FinancialItem;
+    propertyTax: FinancialItem;
+    groceries: FinancialItem;
+    transport: FinancialItem;
+    health: FinancialItem;
+    education: FinancialItem;
+    insurancePremiums: FinancialItem;
+    clothing: FinancialItem;
+    diningOut: FinancialItem;
+    entertainment: FinancialItem;
+    subscriptions: FinancialItem;
+    vacation: FinancialItem;
+    other: FinancialItem;
+}
+
+export interface Insurance {
+    life: number;
+    health: number;
+    car: number;
+    property: number;
+}
 export interface Financials {
     assets: Assets;
     liabilities: Liabilities;
