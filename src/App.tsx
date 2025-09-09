@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -226,16 +224,27 @@ const App = () => {
     const userToUpdate = profile || currentUser;
     if (!userToUpdate) return;
 
-    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
-    const finalUserToSet = updatedUserWithPoints || profile;
+    const dbProfileWithNewPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
 
-    if (finalUserToSet) {
+    if (dbProfileWithNewPoints) {
+        // FIX: Merge the definitive in-memory state (userToUpdate, which has the new persona)
+        // with the confirmed new points data from the database to prevent race conditions.
+        const finalUserToSet = {
+            ...userToUpdate,
+            points: dbProfileWithNewPoints.points,
+            points_source: dbProfileWithNewPoints.points_source,
+        };
         setCurrentUser(finalUserToSet);
 
-        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
+        // Animate only if points actually changed
+        if (dbProfileWithNewPoints.points !== userToUpdate.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
+    } else if (profile) {
+        // Fallback for safety: if DB update failed, at least update state with the profile we were given
+        // (e.g., the one with the new persona), so the user isn't stuck.
+        setCurrentUser(profile);
     }
   };
 
