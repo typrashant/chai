@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
