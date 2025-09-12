@@ -18,6 +18,7 @@ import {
     type Goal,
     type Assets,
     type Insurance,
+    type FinancialItem,
     getLatestFinancialSnapshot,
     getUserGoals,
     createFinancialSnapshot,
@@ -65,13 +66,15 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
 
         const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
         const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        const monthlyIncome = Object.values(income || {}).reduce((sum, item) => item ? sum + (item.frequency === 'monthly' ? item.value : item.value / 12) : sum, 0);
-        const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => item ? sum + (item.frequency === 'monthly' ? item.value : item.value / 12) : sum, 0);
+        // FIX: Explicitly cast `item` to `FinancialItem` and ensure values are numbers to resolve type errors when calculating monthly income and expenses.
+        const monthlyIncome = Object.values(income || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
+        const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
         const monthlySavings = monthlyIncome - monthlyExpenses;
         const netWorth = totalAssets - totalLiabilities;
-        const investableAssetKeys: string[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
+        // FIX: Changed type from string[] to (keyof Assets)[] for type-safe access to asset properties.
+        const investableAssetKeys: (keyof Assets)[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
         
-        const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key as keyof Assets] || 0), 0);
+        const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key] || 0), 0);
         const liquidAssets = Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0);
         const annualIncome = monthlyIncome * 12;
         
@@ -95,12 +98,12 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         };
 
         const lifeTarget = annualIncome * 10;
-        const lifeScore = lifeTarget > 0 ? (insurance.life / lifeTarget) * 100 : (insurance.life > 0 ? 100 : 0);
+        const lifeScore = lifeTarget > 0 ? (Number(insurance.life) / lifeTarget) * 100 : (Number(insurance.life) > 0 ? 100 : 0);
         const protectionScores = {
             life: { score: lifeScore, status: getRagStatus(lifeScore, 90, 50) },
-            health: { score: (insurance.health / 1500000) * 100, status: getRagStatus((insurance.health / 1500000) * 100, 90, 50) },
-            car: { score: Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
-            property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+            health: { score: (Number(insurance.health) / 1500000) * 100, status: getRagStatus((Number(insurance.health) / 1500000) * 100, 90, 50) },
+            car: { score: Number(assets.car || 0) > 0 ? (Number(insurance.car) > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (Number(insurance.car) > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+            property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (Number(insurance.property) > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (Number(insurance.property) > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
         };
         
         const goalsByTerm = { short: { value: 0 }, medium: { value: 0 }, long: { value: 0 } };
@@ -224,45 +227,29 @@ const App = () => {
     const userToUpdate = profile || currentUser;
     if (!userToUpdate) return;
 
-    const dbProfileWithNewPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
+    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
+    const finalUserToSet = updatedUserWithPoints || profile;
 
-    if (dbProfileWithNewPoints) {
-        // FIX: Merge the definitive in-memory state (userToUpdate, which has the new persona)
-        // with the confirmed new points data from the database to prevent race conditions.
-        const finalUserToSet = {
-            ...userToUpdate,
-            points: dbProfileWithNewPoints.points,
-            points_source: dbProfileWithNewPoints.points_source,
-        };
+    if (finalUserToSet) {
         setCurrentUser(finalUserToSet);
 
-        // Animate only if points actually changed
-        if (dbProfileWithNewPoints.points !== userToUpdate.points) {
+        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
-    } else if (profile) {
-        // Fallback for safety: if DB update failed, at least update state with the profile we were given
-        // (e.g., the one with the new persona), so the user isn't stuck.
-        setCurrentUser(profile);
     }
   };
 
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
-    // First, update the persona in the database
-    const userWithPersona = await updateUserPersona(user.user_id, persona);
-    
-    if (userWithPersona) {
-        // CRITICAL: Update the state immediately with the profile that contains the new persona.
-        // This will cause the app to re-render and navigate away from the quiz component.
-        setCurrentUser(userWithPersona);
-        
-        // Now, award points. This happens after the state update for navigation is queued.
-        // We pass `userWithPersona` to ensure `handleAwardPoints` uses the most up-to-date
-        // user object and avoids race conditions with the `currentUser` state.
-        await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
-    }
-    // If userWithPersona is null, the user remains on the quiz page, and they can retry.
+      const userWithPersona = await updateUserPersona(user.user_id, persona);
+      if (userWithPersona) {
+          // Explicitly set the user with the new persona.
+          // This ensures that even if points awarding fails, the app proceeds.
+          setCurrentUser(userWithPersona);
+          // Then try to award points. This will cause a second state update,
+          // but it's a safe way to ensure progress.
+          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
+      }
   }
   
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {

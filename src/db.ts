@@ -1,8 +1,5 @@
-
-
-
 // This file now acts as the data access layer for our Supabase backend.
-import { supabase, type Database, type Json } from '/src/SupabaseClient.ts';
+import { supabase, type Database, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
@@ -131,10 +128,11 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         .from('app_users')
         .select('*')
         .eq('user_id', user_id)
-        .single();
+        .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // Ignore 'PGRST116' (No rows found)
+    if (error) {
         console.error('Error fetching user profile:', error);
+        return null;
     }
     return data;
 }
