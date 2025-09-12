@@ -249,10 +249,20 @@ const App = () => {
   };
 
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
-      const userWithPersona = await updateUserPersona(user.user_id, persona);
-      if (userWithPersona) {
-          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
-      }
+    // First, update the persona in the database
+    const userWithPersona = await updateUserPersona(user.user_id, persona);
+    
+    if (userWithPersona) {
+        // CRITICAL: Update the state immediately with the profile that contains the new persona.
+        // This will cause the app to re-render and navigate away from the quiz component.
+        setCurrentUser(userWithPersona);
+        
+        // Now, award points. This happens after the state update for navigation is queued.
+        // We pass `userWithPersona` to ensure `handleAwardPoints` uses the most up-to-date
+        // user object and avoids race conditions with the `currentUser` state.
+        await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
+    }
+    // If userWithPersona is null, the user remains on the quiz page, and they can retry.
   }
   
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
