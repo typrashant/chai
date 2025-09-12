@@ -1,5 +1,7 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
+import { supabase, isSupabaseConfigured, type Database } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
@@ -25,7 +27,7 @@ import {
     awardPoints,
     addUserGoal,
     removeUserGoal,
-    updateUserPersona,
+    updateUserProfile,
     getUserProfile,
 } from './db.ts';
 
@@ -223,33 +225,44 @@ const App = () => {
     setIsLoading(false);
   };
   
-  const handleAwardPoints = async (source: string, element: HTMLElement, points: number, profile?: UserProfile) => {
-    const userToUpdate = profile || currentUser;
-    if (!userToUpdate) return;
+  const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
+    if (!currentUser) return;
 
-    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
-    const finalUserToSet = updatedUserWithPoints || profile;
-
-    if (finalUserToSet) {
-        setCurrentUser(finalUserToSet);
-
-        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
+    const updatedUserWithPoints = await awardPoints(currentUser.user_id, source, points, currentUser);
+    
+    if (updatedUserWithPoints) {
+        if (updatedUserWithPoints.points !== currentUser.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
+        setCurrentUser(updatedUserWithPoints);
     }
   };
 
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
-      const userWithPersona = await updateUserPersona(user.user_id, persona);
-      if (userWithPersona) {
-          // Explicitly set the user with the new persona.
-          // This ensures that even if points awarding fails, the app proceeds.
-          setCurrentUser(userWithPersona);
-          // Then try to award points. This will cause a second state update,
-          // but it's a safe way to ensure progress.
-          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
-      }
+    const pointsToAward = 30;
+    const source = 'personaQuiz';
+    const currentPointsSource = (user.points_source as { [key: string]: boolean }) || {};
+    const shouldAwardPoints = !currentPointsSource[source];
+
+    const updatePayload: Database['public']['Tables']['app_users']['Update'] = {
+        persona: persona,
+    };
+
+    if (shouldAwardPoints) {
+        updatePayload.points = user.points + pointsToAward;
+        updatePayload.points_source = { ...currentPointsSource, [source]: true };
+    }
+
+    const updatedUser = await updateUserProfile(user.user_id, updatePayload);
+    if (updatedUser) {
+        setCurrentUser(updatedUser);
+        if (shouldAwardPoints) {
+            const element = document.body;
+            const rect = element.getBoundingClientRect();
+            setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: pointsToAward, key: Date.now() });
+        }
+    }
   }
   
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {

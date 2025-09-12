@@ -116,7 +116,7 @@ export const createNewUserProfile = async (
         .single();
         
     if (error) {
-        console.error('Error creating user profile:', error);
+        console.error('Error creating user profile:', JSON.stringify(error, null, 2));
         return null;
     }
     return data;
@@ -131,7 +131,7 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         .maybeSingle();
 
     if (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Error fetching user profile:', JSON.stringify(error, null, 2));
         return null;
     }
     return data;
@@ -147,7 +147,7 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
         .limit(1);
 
     if (error) {
-        console.error('Error fetching latest financial snapshot:', error);
+        console.error('Error fetching latest financial snapshot:', JSON.stringify(error, null, 2));
         return null;
     }
     
@@ -181,23 +181,23 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
         });
 
     if (error) {
-        console.error('Error creating financial snapshot:', error);
+        console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
         return false;
     }
     return true;
 }
 
-export const updateUserPersona = async (user_id: string, persona: string): Promise<UserProfile | null> => {
+export const updateUserProfile = async (user_id: string, updates: Database['public']['Tables']['app_users']['Update']): Promise<UserProfile | null> => {
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('app_users')
-        .update({ persona })
+        .update(updates)
         .eq('user_id', user_id)
         .select()
         .single();
         
     if (error) {
-        console.error('Error updating persona:', error);
+        console.error('Error updating user profile:', JSON.stringify(error, null, 2));
         return null;
     }
     return data;
@@ -222,7 +222,7 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
         .single();
     
     if (error) {
-        console.error('Error awarding points:', error);
+        console.error('Error awarding points:', JSON.stringify(error, null, 2));
         return null;
     }
     return data;
@@ -236,7 +236,7 @@ export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
         .eq('user_id', user_id);
 
     if (error) {
-        console.error('Error fetching goals:', error);
+        console.error('Error fetching goals:', JSON.stringify(error, null, 2));
         return [];
     }
     return data || [];
@@ -256,7 +256,7 @@ export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 
         .single();
 
     if (error) {
-        console.error('Error adding goal:', error);
+        console.error('Error adding goal:', JSON.stringify(error, null, 2));
         return null;
     }
     return data;
@@ -270,7 +270,7 @@ export const removeUserGoal = async (goal_id: string): Promise<boolean> => {
         .eq('goal_id', goal_id);
     
     if (error) {
-        console.error('Error deleting goal:', error);
+        console.error('Error deleting goal:', JSON.stringify(error, null, 2));
         return false;
     }
     return true;
