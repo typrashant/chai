@@ -1,5 +1,8 @@
+
+
+
 // This file now acts as the data access layer for our Supabase backend.
-import { supabase, type Database, type Json } from './SupabaseClient.ts';
+import { supabase, type Database, type Json } from '/src/SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
@@ -143,23 +146,25 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
         .select('*')
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
         console.error('Error fetching latest financial snapshot:', error);
+        return null;
     }
     
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
+
+    const snapshotData = data[0];
 
     // Supabase returns JSONB columns as objects, which match our Financials type
     // FIX: Cast through `unknown` to assert the specific shape of the JSONB data, as TypeScript cannot directly convert the broad `Json` type to our specific interfaces.
     return {
-        assets: data.assets as unknown as Assets,
-        liabilities: data.liabilities as unknown as Liabilities,
-        income: data.income as unknown as Income,
-        expenses: data.expenses as unknown as Expenses,
-        insurance: data.insurance as unknown as Insurance
+        assets: snapshotData.assets as unknown as Assets,
+        liabilities: snapshotData.liabilities as unknown as Liabilities,
+        income: snapshotData.income as unknown as Income,
+        expenses: snapshotData.expenses as unknown as Expenses,
+        insurance: snapshotData.insurance as unknown as Insurance
     };
 }
 
@@ -188,7 +193,7 @@ export const updateUserPersona = async (user_id: string, persona: string): Promi
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('app_users')
-        .update({ persona, updated_at: new Date().toISOString() })
+        .update({ persona })
         .eq('user_id', user_id)
         .select()
         .single();

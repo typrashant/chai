@@ -1,6 +1,10 @@
 
+
+
+
+
 import React, { useMemo } from 'react';
-import { type Income, type Expenses, type Financials, type Frequency, type FinancialItem } from './db';
+import { type Income, type Expenses, type Financials, type Frequency, type FinancialItem } from '/src/db.ts';
 
 interface MonthlyFinancesProps {
   data: { income: Income; expenses: Expenses };
@@ -39,23 +43,26 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
   const handleUpdate = (category: 'income' | 'expenses', field: string, updatedItem: Partial<FinancialItem>) => {
     if (category === 'income') {
         const itemToUpdate = { ...income[field as keyof Income], ...updatedItem };
-        const updatedIncome = { ...income, [field]: itemToUpdate };
+        const updatedIncome = { ...income, [field as keyof Income]: itemToUpdate };
         onUpdate({ income: updatedIncome });
     } else { // category === 'expenses'
         const itemToUpdate = { ...expenses[field as keyof Expenses], ...updatedItem };
-        const updatedExpenses = { ...expenses, [field]: itemToUpdate };
+        const updatedExpenses = { ...expenses, [field as keyof Expenses]: itemToUpdate };
         onUpdate({ expenses: updatedExpenses });
     }
   };
   
+  // FIX: Cast `item` to `FinancialItem` to resolve type errors where properties were being accessed on type `unknown`.
   const totalMonthlyIncome = useMemo(() => Object.values(income).reduce((sum, item) => {
       if (!item) return sum;
-      return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
+      const finItem = item as FinancialItem;
+      return sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12);
   }, 0), [income]);
 
   const totalMonthlyExpenses = useMemo(() => Object.values(expenses).reduce((sum, item) => {
       if (!item) return sum;
-      return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
+      const finItem = item as FinancialItem;
+      return sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12);
   }, 0), [expenses]);
 
   const monthlySavings = useMemo(() => totalMonthlyIncome - totalMonthlyExpenses, [totalMonthlyIncome, totalMonthlyExpenses]);
@@ -66,32 +73,32 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
       <div className="calculator-sections-container">
         <section>
           <h3>Income</h3>
-          {(Object.keys(income) as Array<keyof Income>).map((key) => {
-            const item = income[key];
+          {/* FIX: Refactored to use Object.entries for improved type safety and code clarity. */}
+          {Object.entries(income).map(([key, item]) => {
             const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
             return (
               <div key={key} className="form-group-with-frequency">
                 <div className="form-group">
-                  <label htmlFor={String(key)}>{label}</label>
-                  <input id={String(key)} type="number" value={item.value || ''} onChange={(e) => handleUpdate('income', String(key), { value: Number(e.target.value) || 0 })} placeholder="₹0" />
+                  <label htmlFor={key}>{label}</label>
+                  <input id={key} type="number" value={item.value || ''} onChange={(e) => handleUpdate('income', key, { value: Number(e.target.value) || 0 })} placeholder="₹0" />
                 </div>
-                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('income', String(key), { frequency: newFreq })} />
+                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('income', key, { frequency: newFreq })} />
               </div>
             );
           })}
         </section>
         <section>
           <h3>Expenses</h3>
-           {(Object.keys(expenses) as Array<keyof Expenses>).map((key) => {
-            const item = expenses[key];
+          {/* FIX: Refactored to use Object.entries for improved type safety and code clarity. */}
+           {Object.entries(expenses).map(([key, item]) => {
             const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
              return (
               <div key={key} className="form-group-with-frequency">
                 <div className="form-group">
-                  <label htmlFor={String(key)}>{label}</label>
-                  <input id={String(key)} type="number" value={item.value || ''} onChange={(e) => handleUpdate('expenses', String(key), { value: Number(e.target.value) || 0 })} placeholder="₹0" />
+                  <label htmlFor={key}>{label}</label>
+                  <input id={key} type="number" value={item.value || ''} onChange={(e) => handleUpdate('expenses', key, { value: Number(e.target.value) || 0 })} placeholder="₹0" />
                 </div>
-                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('expenses', String(key), { frequency: newFreq })} />
+                <FrequencyToggle frequency={item.frequency} onChange={(newFreq) => handleUpdate('expenses', key, { frequency: newFreq })} />
               </div>
             );
           })}

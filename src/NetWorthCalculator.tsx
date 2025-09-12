@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { type Assets, type Liabilities, type Financials } from './db';
+import { type Assets, type Liabilities, type Financials } from '/src/db.ts';
 
 interface NetWorthCalculatorProps {
   data: { assets: Assets; liabilities: Liabilities };
@@ -26,8 +26,10 @@ const NetWorthCalculator: React.FC<NetWorthCalculatorProps> = ({ data, onUpdate,
     onUpdate({ liabilities: updatedLiabilities });
   };
   
-  const totalAssets = useMemo(() => Object.values(assets).reduce((sum, val) => sum + val, 0), [assets]);
-  const totalLiabilities = useMemo(() => Object.values(liabilities).reduce((sum, val) => sum + val, 0), [liabilities]);
+  // FIX: Wrapped `val` in `Number(val || 0)` to ensure values are treated as numbers during summation,
+  // resolving 'unknown' type errors in arithmetic operations.
+  const totalAssets = useMemo(() => Object.values(assets).reduce((sum, val) => sum + Number(val || 0), 0), [assets]);
+  const totalLiabilities = useMemo(() => Object.values(liabilities).reduce((sum, val) => sum + Number(val || 0), 0), [liabilities]);
   const netWorth = useMemo(() => totalAssets - totalLiabilities, [totalAssets, totalLiabilities]);
 
   return (

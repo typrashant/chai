@@ -3,25 +3,6 @@ const URLS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/sw.js',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/index.css',
-  '/src/Auth.tsx',
-  '/src/db.ts',
-  '/src/PersonaQuiz.tsx',
-  '/src/NetWorthCalculator.tsx',
-  '/src/MonthlyFinances.tsx',
-  '/src/InvestmentAllocation.tsx',
-  '/src/FinancialHealthCard.tsx',
-  '/src/FinancialProtectionCard.tsx',
-  '/src/FinancialGoalsCard.tsx',
-  '/src/RetirementTracker.tsx',
-  '/src/ActionDetailModal.tsx',
-  '/src/PowerOfSavingCard.tsx',
-  '/src/MyPlan.tsx',
-  '/src/icons.tsx',
-  '/src/SupabaseClient.ts',
   '/icon-192x192.png',
   '/icon-512x512.png'
 ];
@@ -32,7 +13,9 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
-        return cache.addAll(URLS_TO_CACHE);
+        // Use a new request to bypass any browser caching of the files themselves
+        const requests = URLS_TO_CACHE.map(url => new Request(url, { cache: 'reload' }));
+        return cache.addAll(requests);
       })
   );
 });
