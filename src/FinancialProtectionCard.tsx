@@ -1,5 +1,5 @@
 import React from 'react';
-import { type Financials, type Insurance } from './db';
+import { type Financials, type Insurance } from './db.ts';
 
 type RagStatus = 'green' | 'amber' | 'red';
 const getRagColor = (status: RagStatus) => {

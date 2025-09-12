@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { type Assets } from './db';
+import { type Assets } from './db.ts';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
@@ -14,16 +14,18 @@ const formatInLakhs = (value: number) => {
     return formatCurrency(value);
 };
 
+// FIX: Added 'as (keyof Assets)[]' to each category array to ensure type-safe access
+// to asset properties, resolving potential runtime errors and improving type inference.
 const investmentCategories = {
-  equity: ['stocks', 'mutualFunds', 'crypto'],
-  debt: ['nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'],
+  equity: ['stocks', 'mutualFunds', 'crypto'] as (keyof Assets)[],
+  debt: ['nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'] as (keyof Assets)[],
   
-  longTerm: ['stocks', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi'],
-  mediumTerm: ['mutualFunds'],
-  shortTerm: ['crypto', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'],
+  longTerm: ['stocks', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi'] as (keyof Assets)[],
+  mediumTerm: ['mutualFunds'] as (keyof Assets)[],
+  shortTerm: ['crypto', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'] as (keyof Assets)[],
   
-  growth: ['stocks', 'mutualFunds', 'crypto'],
-  savings: ['nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'],
+  growth: ['stocks', 'mutualFunds', 'crypto'] as (keyof Assets)[],
+  savings: ['nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'] as (keyof Assets)[],
 };
 
 const investmentLabels: { [K in keyof Assets]?: string } = {
@@ -98,8 +100,9 @@ const AnalyticsBar = ({ title, segments }: { title: string, segments: { label: s
 
 const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
   const { total, allocations, analytics } = useMemo(() => {
+    // FIX: Explicitly convert `value` to a number using Number() to prevent arithmetic errors where it was being treated as 'unknown' or 'symbol'.
     const investmentAssets = Object.entries(assets).filter(([key]) => investmentLabels[key as keyof Assets]);
-    const total = investmentAssets.reduce((sum, [, value]) => sum + value, 0);
+    const total = investmentAssets.reduce((sum, [, value]) => sum + Number(value || 0), 0);
 
     if (total === 0) {
       return { total: 0, allocations: [], analytics: null };
@@ -111,8 +114,8 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
     const allocations = investmentAssets
       .map(([key, value]) => ({
         label: investmentLabels[key as keyof Assets]!,
-        value,
-        percentage: (value / total) * 100,
+        value: Number(value || 0),
+        percentage: total > 0 ? (Number(value || 0) / total) * 100 : 0,
         color: colors[colorIndex++ % colors.length]
       }))
       .filter(item => item.value > 0)
@@ -120,17 +123,17 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
       
     const analytics = {
         riskProfile: [
-            { label: 'Equity', value: investmentCategories.equity.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#4ADE80' },
-            { label: 'Debt', value: investmentCategories.debt.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#60A5FA' },
+            { label: 'Equity', value: investmentCategories.equity.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#4ADE80' },
+            { label: 'Debt', value: investmentCategories.debt.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#60A5FA' },
         ],
         horizon: [
-            { label: 'Long-Term', value: investmentCategories.longTerm.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#A78BFA' },
-            { label: 'Medium-Term', value: investmentCategories.mediumTerm.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#F472B6' },
-            { label: 'Short-Term', value: investmentCategories.shortTerm.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#FBBF24' },
+            { label: 'Long-Term', value: investmentCategories.longTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#A78BFA' },
+            { label: 'Medium-Term', value: investmentCategories.mediumTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#F472B6' },
+            { label: 'Short-Term', value: investmentCategories.shortTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#FBBF24' },
         ],
         purpose: [
-            { label: 'Growth', value: investmentCategories.growth.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#2DD4BF' },
-            { label: 'Savings', value: investmentCategories.savings.reduce((sum, key) => sum + (assets[key as keyof Assets] || 0), 0), color: '#818CF8' },
+            { label: 'Growth', value: investmentCategories.growth.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#2DD4BF' },
+            { label: 'Savings', value: investmentCategories.savings.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#818CF8' },
         ]
     }
 
@@ -147,17 +150,19 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
                 <DonutChart data={allocations}>
                     <tspan x="50" className="donut-center-value">{formatInLakhs(total)}</tspan>
                 </DonutChart>
-                <ul className="chart-legend">
-                    {allocations.map(item => (
-                        <li key={item.label} className="legend-item">
-                            <div className="legend-info">
-                                <span className="legend-color" style={{ backgroundColor: item.color }}></span>
-                                <span>{item.label}</span>
-                            </div>
-                            <span className="legend-value">{item.percentage.toFixed(0)}%</span>
-                        </li>
-                    ))}
-                </ul>
+                <div className="chart-legend-container">
+                  <ul className="chart-legend">
+                      {allocations.map(item => (
+                          <li key={item.label} className="legend-item">
+                              <div className="legend-info">
+                                  <span className="legend-color" style={{ backgroundColor: item.color }}></span>
+                                  <span>{item.label}</span>
+                              </div>
+                              <span className="legend-value">{item.percentage.toFixed(0)}%</span>
+                          </li>
+                      ))}
+                  </ul>
+                </div>
             </div>
             <div className="portfolio-analytics">
                 <AnalyticsBar title="Debt vs. Equity" segments={analytics.riskProfile} />
@@ -166,7 +171,7 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
             </div>
           </>
         ) : (
-          <p style={{ color: '#666', textAlign: 'center', margin: 'auto' }}>No investment data entered yet.</p>
+          <div className="summary-placeholder" style={{flexGrow: 1}}><p>Enter your assets to see your investment allocation.</p></div>
         )}
       </div>
     </div>

@@ -1713,6 +1713,41 @@ input[type="range"]::-moz-range-thumb {
     gap: 0.5rem;
 }
 
+/* Error Toast for failed saves */
+.error-toast {
+  position: fixed;
+  bottom: 70px; /* Above nav bar */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--red);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  z-index: 1001;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.error-toast button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 0;
+  line-height: 1;
+}
+.error-toast button:hover {
+  opacity: 1;
+}
+
 
 /* For tablets and larger mobile devices */
 @media (max-width: 768px) {

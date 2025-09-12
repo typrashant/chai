@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { type Goal, type UserProfile } from './db.ts';
 

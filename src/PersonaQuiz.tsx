@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { type UserProfile } from './db.ts';
 

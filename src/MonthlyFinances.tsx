@@ -1,10 +1,5 @@
-
-
-
-
-
 import React, { useMemo } from 'react';
-import { type Income, type Expenses, type Financials, type Frequency, type FinancialItem } from '/src/db.ts';
+import { type Income, type Expenses, type Financials, type Frequency, type FinancialItem } from './db.ts';
 
 interface MonthlyFinancesProps {
   data: { income: Income; expenses: Expenses };
@@ -52,17 +47,18 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
     }
   };
   
-  // FIX: Cast `item` to `FinancialItem` to resolve type errors where properties were being accessed on type `unknown`.
+  // FIX: Cast item to FinancialItem to prevent type errors during calculation.
   const totalMonthlyIncome = useMemo(() => Object.values(income).reduce((sum, item) => {
       if (!item) return sum;
-      const finItem = item as FinancialItem;
-      return sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12);
+      const fi = item as FinancialItem;
+      return sum + (fi.frequency === 'monthly' ? fi.value : fi.value / 12);
   }, 0), [income]);
 
+  // FIX: Cast item to FinancialItem to prevent type errors during calculation.
   const totalMonthlyExpenses = useMemo(() => Object.values(expenses).reduce((sum, item) => {
       if (!item) return sum;
-      const finItem = item as FinancialItem;
-      return sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12);
+      const fi = item as FinancialItem;
+      return sum + (fi.frequency === 'monthly' ? fi.value : fi.value / 12);
   }, 0), [expenses]);
 
   const monthlySavings = useMemo(() => totalMonthlyIncome - totalMonthlyExpenses, [totalMonthlyIncome, totalMonthlyExpenses]);

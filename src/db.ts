@@ -116,7 +116,7 @@ export const createNewUserProfile = async (
         .single();
         
     if (error) {
-        console.error('Error creating user profile:', JSON.stringify(error, null, 2));
+        console.error('Error creating user profile:', error);
         return null;
     }
     return data;
@@ -128,11 +128,10 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         .from('app_users')
         .select('*')
         .eq('user_id', user_id)
-        .maybeSingle();
+        .single();
 
-    if (error) {
-        console.error('Error fetching user profile:', JSON.stringify(error, null, 2));
-        return null;
+    if (error && error.code !== 'PGRST116') { // Ignore 'PGRST116' (No rows found)
+        console.error('Error fetching user profile:', error);
     }
     return data;
 }
@@ -144,25 +143,23 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
         .select('*')
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
-        .limit(1);
+        .limit(1)
+        .single();
 
-    if (error) {
-        console.error('Error fetching latest financial snapshot:', JSON.stringify(error, null, 2));
-        return null;
+    if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching latest financial snapshot:', error);
     }
     
-    if (!data || data.length === 0) return null;
-
-    const snapshotData = data[0];
+    if (!data) return null;
 
     // Supabase returns JSONB columns as objects, which match our Financials type
     // FIX: Cast through `unknown` to assert the specific shape of the JSONB data, as TypeScript cannot directly convert the broad `Json` type to our specific interfaces.
     return {
-        assets: snapshotData.assets as unknown as Assets,
-        liabilities: snapshotData.liabilities as unknown as Liabilities,
-        income: snapshotData.income as unknown as Income,
-        expenses: snapshotData.expenses as unknown as Expenses,
-        insurance: snapshotData.insurance as unknown as Insurance
+        assets: data.assets as unknown as Assets,
+        liabilities: data.liabilities as unknown as Liabilities,
+        income: data.income as unknown as Income,
+        expenses: data.expenses as unknown as Expenses,
+        insurance: data.insurance as unknown as Insurance
     };
 }
 
@@ -181,23 +178,23 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
         });
 
     if (error) {
-        console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
+        console.error('Error creating financial snapshot:', error);
         return false;
     }
     return true;
 }
 
-export const updateUserProfile = async (user_id: string, updates: Database['public']['Tables']['app_users']['Update']): Promise<UserProfile | null> => {
+export const updateUserPersona = async (user_id: string, persona: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('app_users')
-        .update(updates)
+        .update({ persona, updated_at: new Date().toISOString() })
         .eq('user_id', user_id)
         .select()
         .single();
         
     if (error) {
-        console.error('Error updating user profile:', JSON.stringify(error, null, 2));
+        console.error('Error updating persona:', error);
         return null;
     }
     return data;
@@ -222,7 +219,7 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
         .single();
     
     if (error) {
-        console.error('Error awarding points:', JSON.stringify(error, null, 2));
+        console.error('Error awarding points:', error);
         return null;
     }
     return data;
@@ -236,7 +233,7 @@ export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
         .eq('user_id', user_id);
 
     if (error) {
-        console.error('Error fetching goals:', JSON.stringify(error, null, 2));
+        console.error('Error fetching goals:', error);
         return [];
     }
     return data || [];
@@ -256,7 +253,7 @@ export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 
         .single();
 
     if (error) {
-        console.error('Error adding goal:', JSON.stringify(error, null, 2));
+        console.error('Error adding goal:', error);
         return null;
     }
     return data;
@@ -270,7 +267,7 @@ export const removeUserGoal = async (goal_id: string): Promise<boolean> => {
         .eq('goal_id', goal_id);
     
     if (error) {
-        console.error('Error deleting goal:', JSON.stringify(error, null, 2));
+        console.error('Error deleting goal:', error);
         return false;
     }
     return true;

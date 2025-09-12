@@ -1,7 +1,5 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { supabase, isSupabaseConfigured, type Database } from './SupabaseClient.ts';
+import { supabase, isSupabaseConfigured } from './supabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
@@ -27,7 +25,7 @@ import {
     awardPoints,
     addUserGoal,
     removeUserGoal,
-    updateUserProfile,
+    updateUserPersona,
     getUserProfile,
 } from './db.ts';
 
@@ -47,7 +45,7 @@ const Logo = () => (
         <g transform="translate(3,0)"><path className="steam steam-1" d="M22 8 C 25 2, 30 2, 33 8" /><path className="steam steam-2" d="M25 10 C 28 4, 33 4, 36 10" /><path className="steam steam-3" d="M20 12 C 23 6, 28 6, 31 12" /></g>
     </svg>
 );
-const ProfileIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
+const ProfileIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
 const initialFinancials: Financials = {
@@ -65,10 +63,11 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
 
         const age = new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
         const { assets, liabilities, income, expenses, insurance } = financials;
-
-        const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        // FIX: Explicitly cast `item` to `FinancialItem` and ensure values are numbers to resolve type errors when calculating monthly income and expenses.
+        
+        // FIX: Explicitly convert object values to numbers to prevent 'unknown' type errors during arithmetic operations.
+        const totalAssets = Object.values(assets || {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        const totalLiabilities = Object.values(liabilities || {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        // FIX: Cast iterated items to FinancialItem to allow safe access to 'frequency' and 'value' properties.
         const monthlyIncome = Object.values(income || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
         const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
         const monthlySavings = monthlyIncome - monthlyExpenses;
@@ -86,8 +85,8 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         const getRagStatusReversed = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value <= green) return 'green'; if (value <= amber) return 'amber'; return 'red'; };
         
         const savingsRatio = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
-        const emi = expenses.emi;
-        const monthlyEmi = emi ? (emi.frequency === 'monthly' ? emi.value : emi.value / 12) : 0;
+        const emi = expenses.emi as FinancialItem;
+        const monthlyEmi = emi ? (emi.frequency === 'monthly' ? Number(emi.value) : Number(emi.value) / 12) : 0;
         const debtToIncomeRatio = monthlyIncome > 0 ? (monthlyEmi / monthlyIncome) * 100 : 0;
         
         const healthRatios = {
@@ -186,6 +185,7 @@ const App = () => {
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -194,10 +194,6 @@ const App = () => {
     }
 
     const checkUser = async () => {
-        if (!supabase) {
-            setIsLoading(false);
-            return;
-        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
@@ -213,6 +209,14 @@ const App = () => {
     };
     checkUser();
   }, []);
+  
+  useEffect(() => {
+    if (saveError) {
+        const timer = setTimeout(() => setSaveError(null), 5000); // Hide after 5 seconds
+        return () => clearTimeout(timer);
+    }
+  }, [saveError]);
+
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
@@ -225,68 +229,61 @@ const App = () => {
     setIsLoading(false);
   };
   
-  const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
-    if (!currentUser) return;
+  const handleAwardPoints = async (source: string, element: HTMLElement, points: number, profile?: UserProfile) => {
+    const userToUpdate = profile || currentUser;
+    if (!userToUpdate) return;
 
-    const updatedUserWithPoints = await awardPoints(currentUser.user_id, source, points, currentUser);
-    
-    if (updatedUserWithPoints) {
-        if (updatedUserWithPoints.points !== currentUser.points) {
+    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
+    const finalUserToSet = updatedUserWithPoints || profile;
+
+    if (finalUserToSet) {
+        setCurrentUser(finalUserToSet);
+
+        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
-        setCurrentUser(updatedUserWithPoints);
     }
   };
 
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
-    const pointsToAward = 30;
-    const source = 'personaQuiz';
-    const currentPointsSource = (user.points_source as { [key: string]: boolean }) || {};
-    const shouldAwardPoints = !currentPointsSource[source];
-
-    const updatePayload: Database['public']['Tables']['app_users']['Update'] = {
-        persona: persona,
-    };
-
-    if (shouldAwardPoints) {
-        updatePayload.points = user.points + pointsToAward;
-        updatePayload.points_source = { ...currentPointsSource, [source]: true };
-    }
-
-    const updatedUser = await updateUserProfile(user.user_id, updatePayload);
-    if (updatedUser) {
-        setCurrentUser(updatedUser);
-        if (shouldAwardPoints) {
-            const element = document.body;
-            const rect = element.getBoundingClientRect();
-            setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: pointsToAward, key: Date.now() });
-        }
-    }
+      const userWithPersona = await updateUserPersona(user.user_id, persona);
+      if (userWithPersona) {
+          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
+      }
   }
   
-  const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
+  const handleSaveAndCloseCalculators = (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
+    if (source === 'netWorth') setIsNetWorthOpen(false);
+    if (source === 'monthlyFinances') setIsMonthlyFinancesOpen(false);
+
     if (currentUser && financials) {
-        await createFinancialSnapshot(currentUser.user_id, financials);
-        if (source === 'netWorth') {
-            await handleAwardPoints('netWorth', buttonElement, REWARD_POINTS.netWorth);
-            setIsNetWorthOpen(false);
-        }
-        if (source === 'monthlyFinances') {
-            await handleAwardPoints('monthlyFinances', buttonElement, REWARD_POINTS.monthlyFinances);
-            setIsMonthlyFinancesOpen(false);
-        }
+        // Run save and award points in the background
+        (async () => {
+            const success = await createFinancialSnapshot(currentUser.user_id, financials);
+            if (success) {
+                await handleAwardPoints(source, buttonElement, REWARD_POINTS[source]);
+            } else {
+                setSaveError('Your changes could not be saved. Please check your connection.');
+            }
+        })();
     }
   };
 
-  const handleProtectionToggle = async (buttonElement: HTMLButtonElement) => {
+  const handleProtectionToggle = (buttonElement: HTMLButtonElement) => {
       if (!isProtectionOpen) {
           setIsProtectionOpen(true);
       } else {
         setIsProtectionOpen(false);
         if (currentUser && financials) {
-            await createFinancialSnapshot(currentUser.user_id, financials);
-            await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
+            (async () => {
+                const success = await createFinancialSnapshot(currentUser.user_id, financials);
+                if(success) {
+                    await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
+                } else {
+                    setSaveError('Your changes could not be saved. Please check your connection.');
+                }
+            })();
         }
       }
   };
@@ -298,17 +295,49 @@ const App = () => {
       setIsGoalsOpen(!isGoalsOpen);
   }
 
-  const handleAddGoal = async (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
-    if(currentUser) {
-        const newGoal = await addUserGoal(currentUser.user_id, goal);
-        if(newGoal && goals) setGoals([...goals, newGoal]);
+  const handleAddGoal = (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
+    if(currentUser && goals) {
+        // Optimistic update
+        const tempId = `temp_${Date.now()}`;
+        const tempGoal: Goal = { 
+            ...goal, 
+            goal_id: tempId, 
+            user_id: currentUser.user_id, 
+            created_at: new Date().toISOString(), 
+            is_achieved: false 
+        };
+        setGoals([...goals, tempGoal]);
+
+        // DB operation in background
+        (async () => {
+            const newGoalFromDb = await addUserGoal(currentUser.user_id, goal);
+            if(newGoalFromDb) {
+                // Replace temp goal with real one from DB
+                setGoals(currentGoals => (currentGoals || []).map(g => g.goal_id === tempId ? newGoalFromDb : g));
+            } else {
+                // Revert on failure
+                setGoals(currentGoals => (currentGoals || []).filter(g => g.goal_id !== tempId));
+                setSaveError('Failed to add goal. Please try again.');
+            }
+        })();
     }
   }
   
-  const handleRemoveGoal = async (goalId: string) => {
-    if(currentUser) {
-        const success = await removeUserGoal(goalId);
-        if(success && goals) setGoals(goals.filter(g => g.goal_id !== goalId));
+  const handleRemoveGoal = (goalId: string) => {
+    if(currentUser && goals) {
+        const originalGoals = goals;
+        // Optimistic update
+        setGoals(originalGoals.filter(g => g.goal_id !== goalId));
+
+        // DB operation in background
+        (async () => {
+            const success = await removeUserGoal(goalId);
+            if(!success) {
+                // Revert on failure
+                setGoals(originalGoals);
+                setSaveError('Failed to remove goal. Please try again.');
+            }
+        })();
     }
   }
 
@@ -411,6 +440,13 @@ const App = () => {
             <MyPlan metrics={metrics} user={currentUser} />
         )}
       </main>
+      
+      {saveError && (
+        <div className="error-toast" role="alert">
+            <span>{saveError}</span>
+            <button onClick={() => setSaveError(null)} aria-label="Dismiss error">&times;</button>
+        </div>
+      )}
       
       {pointsAnimation && <div key={pointsAnimation.key} className="points-toast" style={{ left: `${pointsAnimation.x}px`, top: `${pointsAnimation.y}px` }}>+ {pointsAnimation.amount} ✨</div>}
       
