@@ -10,12 +10,16 @@ declare global {
 
 import { createClient } from '@supabase/supabase-js';
 
-// Your environment/config logic here
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const isSupabaseConfigured = !!supabaseUrl && !!supabaseAnonKey;
+let supabaseUrl: string | undefined;
+let supabaseAnonKey: string | undefined;
 
-// (Removed duplicate export of supabase. Only default export below.)
+// Use a more robust check that verifies `import.meta` and `import.meta.env` exist before trying to access them.
+// This prevents crashes in environments where they might not be immediately available.
+if (typeof import.meta !== 'undefined' && import.meta.env) {
+    supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+}
+
 
 // Defines the TypeScript interface for your entire database schema.
 // This provides static type checking and autocompletion for all your database operations.
@@ -137,7 +141,7 @@ export type Json =
   | Json[]
 
 // A simpler, more reliable check for whether the secrets have been provided.
-// (Removed duplicate declaration of isSupabaseConfigured)
+export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
 // Only create a client if the config is valid, otherwise export null.
 export const supabase = isSupabaseConfigured
