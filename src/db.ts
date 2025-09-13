@@ -218,20 +218,18 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
     return true;
 }
 
-export const updateUserPersona = async (user_id: string, persona: string): Promise<UserProfile | null> => {
-    if (!supabase) return null;
-    const { data, error } = await supabase
+export const updateUserPersona = async (user_id: string, persona: string): Promise<boolean> => {
+    if (!supabase) return false;
+    const { error } = await supabase
         .from('app_users')
         .update({ persona, updated_at: new Date().toISOString() })
-        .eq('user_id', user_id)
-        .select()
-        .single();
+        .eq('user_id', user_id);
         
     if (error) {
         console.error('Error updating persona:', error);
-        return null;
+        return false;
     }
-    return data;
+    return true;
 }
 
 export const awardPoints = async (user_id: string, source: string, pointsToAdd: number, currentProfile: UserProfile): Promise<UserProfile | null> => {
@@ -245,18 +243,22 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
     const newPoints = currentProfile.points + pointsToAdd;
     const newPointsSource = { ...currentPointsSource, [source]: true };
     
-    const { data, error } = await supabase
+    const { error } = await supabase
         .from('app_users')
         .update({ points: newPoints, points_source: newPointsSource })
-        .eq('user_id', user_id)
-        .select()
-        .single();
+        .eq('user_id', user_id);
     
     if (error) {
         console.error('Error awarding points:', error);
         return null;
     }
-    return data;
+
+    // On success, return the optimistically updated profile
+    return {
+        ...currentProfile,
+        points: newPoints,
+        points_source: newPointsSource,
+    };
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
