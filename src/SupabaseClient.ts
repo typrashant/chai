@@ -20,6 +20,74 @@ if (typeof import.meta !== 'undefined' && import.meta.env) {
     supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
 
+// --- Type definitions for JSONB content ---
+// These are now the single source of truth for the financial data structure.
+export type Frequency = 'monthly' | 'annual';
+export interface FinancialItem { value: number; frequency: Frequency; }
+export interface Assets {
+    cashInHand: number;
+    savingsAccount: number;
+    fixedDeposit: number;
+    recurringDeposit: number;
+    gold: number;
+    stocks: number;
+    mutualFunds: number;
+    crypto: number;
+    nps: number;
+    ppf: number;
+    pf: number;
+    sukanyaSamriddhi: number;
+    house: number;
+    car: number;
+    otherProperty: number;
+    other: number;
+}
+export interface Liabilities {
+    homeLoan: number;
+    personalLoan: number;
+    carLoan: number;
+    creditCard: number;
+    other: number;
+}
+export interface Income {
+    salary: FinancialItem;
+    bonus: FinancialItem;
+    business: FinancialItem;
+    rental: FinancialItem;
+    other: FinancialItem;
+}
+export interface Expenses {
+    rent: FinancialItem;
+    emi: FinancialItem;
+    utilities: FinancialItem;
+    societyMaintenance: FinancialItem;
+    propertyTax: FinancialItem;
+    groceries: FinancialItem;
+    transport: FinancialItem;
+    health: FinancialItem;
+    education: FinancialItem;
+    insurancePremiums: FinancialItem;
+    clothing: FinancialItem;
+    diningOut: FinancialItem;
+    entertainment: FinancialItem;
+    subscriptions: FinancialItem;
+    vacation: FinancialItem;
+    other: FinancialItem;
+}
+export interface Insurance {
+    life: number;
+    health: number;
+    car: number;
+    property: number;
+}
+export interface Financials {
+    assets: Assets;
+    liabilities: Liabilities;
+    income: Income;
+    expenses: Expenses;
+    insurance: Insurance;
+}
+
 
 // Defines the TypeScript interface for your entire database schema.
 // This provides static type checking and autocompletion for all your database operations.
@@ -43,7 +111,7 @@ export interface Database {
           updated_at: string;
         };
         Insert: { // The data shape needed to insert a new row.
-          user_id: string;
+          user_id: string; // FIX: Restored user_id as it's required for inserts.
           client_id: string;
           name: string;
           phone_number: string;
@@ -66,29 +134,37 @@ export interface Database {
           points_source?: Json;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "app_users_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       financial_snapshots: {
         Row: {
           snapshot_id: number;
           user_id: string;
           snapshot_date: string;
-          assets: Json | null;
-          liabilities: Json | null;
-          income: Json | null;
-          expenses: Json | null;
-          insurance: Json | null;
+          snapshot_data: Financials | null;
         };
         Insert: {
           user_id: string;
-          assets?: Json | null;
-          liabilities?: Json | null;
-          income?: Json | null;
-          expenses?: Json | null;
-          insurance?: Json | null;
+          snapshot_data?: Financials | null;
         };
         Update: {}; // Snapshots are typically immutable
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "financial_snapshots_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "app_users";
+            referencedColumns: ["user_id"];
+          }
+        ];
       };
       goals: {
         Row: {
@@ -113,6 +189,39 @@ export interface Database {
           target_value?: number;
           is_achieved?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "app_users";
+            referencedColumns: ["user_id"];
+          }
+        ];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+  auth: {
+    Tables: {
+      users: {
+        Row: {
+          id: string;
+          // Other properties of auth.users can be added here if needed
+        };
+        Insert: {};
+        Update: {};
         Relationships: [];
       };
     };
@@ -144,6 +253,6 @@ export type Json =
 export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
 // Only create a client if the config is valid, otherwise export null.
-export const supabase = isSupabaseConfigured && typeof supabaseUrl === 'string' && typeof supabaseAnonKey === 'string'
-  ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string)
+export const supabase = isSupabaseConfigured
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
   : null;

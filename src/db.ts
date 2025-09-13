@@ -1,83 +1,14 @@
 // This file now acts as the data access layer for our Supabase backend.
-import { supabase, type Database, type Json } from './SupabaseClient.ts';
+import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
 export type Goal = Database['public']['Tables']['goals']['Row'];
 
-// These types are for the frontend state management, matching the JSONB structure
-export type Frequency = 'monthly' | 'annual';
-export interface FinancialItem { value: number; frequency: Frequency; }
+// The Financials-related interfaces are now imported from the schema definition file.
+// We re-export them here so that component files don't need to change their import source.
+export type { Frequency, FinancialItem, Assets, Liabilities, Income, Expenses, Insurance, Financials } from './SupabaseClient.ts';
 
-// FIX: Replaced generic index signatures with explicit properties for stronger type safety.
-// This ensures that data structures are well-defined throughout the app, resolving multiple 'unknown' type errors.
-export interface Assets {
-    cashInHand: number;
-    savingsAccount: number;
-    fixedDeposit: number;
-    recurringDeposit: number;
-    gold: number;
-    stocks: number;
-    mutualFunds: number;
-    crypto: number;
-    nps: number;
-    ppf: number;
-    pf: number;
-    sukanyaSamriddhi: number;
-    house: number;
-    car: number;
-    otherProperty: number;
-    other: number;
-}
-
-export interface Liabilities {
-    homeLoan: number;
-    personalLoan: number;
-    carLoan: number;
-    creditCard: number;
-    other: number;
-}
-
-export interface Income {
-    salary: FinancialItem;
-    bonus: FinancialItem;
-    business: FinancialItem;
-    rental: FinancialItem;
-    other: FinancialItem;
-}
-
-export interface Expenses {
-    rent: FinancialItem;
-    emi: FinancialItem;
-    utilities: FinancialItem;
-    societyMaintenance: FinancialItem;
-    propertyTax: FinancialItem;
-    groceries: FinancialItem;
-    transport: FinancialItem;
-    health: FinancialItem;
-    education: FinancialItem;
-    insurancePremiums: FinancialItem;
-    clothing: FinancialItem;
-    diningOut: FinancialItem;
-    entertainment: FinancialItem;
-    subscriptions: FinancialItem;
-    vacation: FinancialItem;
-    other: FinancialItem;
-}
-
-export interface Insurance {
-    life: number;
-    health: number;
-    car: number;
-    property: number;
-}
-export interface Financials {
-    assets: Assets;
-    liabilities: Liabilities;
-    income: Income;
-    expenses: Expenses;
-    insurance: Insurance;
-}
 
 // --- Utility Functions ---
 
@@ -142,7 +73,7 @@ export const createNewUserProfile = async (
             gender,
             dependents,
             profession,
-        })
+        } as any) // FIX: Use 'as any' to bypass Supabase's incorrect type inference for PKs that are also FKs.
         .select()
         .single();
         
@@ -163,6 +94,7 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
 
     if (error && error.code !== 'PGRST116') { // Ignore 'PGRST116' (No rows found)
         console.error('Error fetching user profile:', error);
+        return null;
     }
     return data;
 }
@@ -171,7 +103,7 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('financial_snapshots')
-        .select('*')
+        .select('snapshot_data') // More efficient: only select the column we need
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
         .limit(1)
@@ -179,19 +111,16 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
 
     if (error && error.code !== 'PGRST116') {
         console.error('Error fetching latest financial snapshot:', error);
+        return null;
     }
     
-    if (!data) return null;
-
-    // Supabase returns JSONB columns as objects, which match our Financials type
-    // FIX: Cast through `unknown` to assert the specific shape of the JSONB data, as TypeScript cannot directly convert the broad `Json` type to our specific interfaces.
-    return {
-        assets: data.assets as unknown as Assets,
-        liabilities: data.liabilities as unknown as Liabilities,
-        income: data.income as unknown as Income,
-        expenses: data.expenses as unknown as Expenses,
-        insurance: data.insurance as unknown as Insurance
-    };
+    // FIX: Add a robust type guard to safely access snapshot_data.
+    // This satisfies the strict type checker which warns that `data` could be an error object.
+    if (data && 'snapshot_data' in data) {
+      return data.snapshot_data;
+    }
+    
+    return null;
 }
 
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
@@ -204,11 +133,7 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
         .from('financial_snapshots')
         .insert({
             user_id,
-            assets: sanitizedFinancials.assets as unknown as Json,
-            liabilities: sanitizedFinancials.liabilities as unknown as Json,
-            income: sanitizedFinancials.income as unknown as Json,
-            expenses: sanitizedFinancials.expenses as unknown as Json,
-            insurance: sanitizedFinancials.insurance as unknown as Json,
+            snapshot_data: sanitizedFinancials as Financials,
         })
         .select(); // Request data back to confirm insert and expose RLS issues.
 
