@@ -123,12 +123,12 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
       'goals-overall': { severity: "medium", icon: <WarningIcon />, title: "Align Investments with Goals", description: `Your current investments are not on track to meet your financial goals. Review your investment allocation to ensure it aligns with your short, medium, and long-term objectives.` },
       'goals-short': { severity: "high", icon: <WarningIcon />, title: "Fund Your Short-Term Goals", description: "You have a shortfall in funds for goals due within 2 years. Prioritize allocating liquid assets to avoid taking risks with near-term objectives." },
       'goals-medium': { severity: "medium", icon: <WarningIcon />, title: "Plan for Medium-Term Goals", description: "Your medium-term goals (2-5 years) are underfunded. Consider increasing your investments in balanced or hybrid funds to meet these targets." },
-      'goals-long': { severity: "medium", icon: <WarningIcon />, title: "Boost Long-Term Goal Savings", description: "Your investments for long-term goals (> 5 years) are falling behind. A small increase in your monthly equity investments can make a big difference over time." },
-      'retirement': { severity: "high", icon: <WarningIcon />, title: "Accelerate Your Retirement Savings", description: `Your retirement readiness is at ${retirementReadiness.readinessPercentage.toFixed(0)}%. Increasing your contributions to long-term retirement accounts is crucial.` },
-      'asset-allocation-persona-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Align Investments to Your Persona", description: "Your portfolio has a high equity exposure, which might not align with your cautious financial persona. Consider rebalancing towards more stable assets." },
-      'asset-allocation-persona-conservative': { severity: "medium", icon: <WarningIcon />, title: "Align Investments to Your Persona", description: "Your portfolio is quite conservative for your risk-taking persona. You may be missing out on potential growth by not having enough exposure to equity." },
-      'asset-allocation-age-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio Risk for Your Age", description: `Your portfolio's equity exposure of ${equityAllocationPercentage.toFixed(0)}% is higher than recommended for your age. Rebalancing could help protect your capital.` },
-      'asset-allocation-age-conservative': { severity: "medium", icon: <WarningIcon />, title: "Increase Growth Potential for Your Age", description: `Your portfolio's equity exposure of ${equityAllocationPercentage.toFixed(0)}% is low for your age. With a long time horizon, you could potentially take on more risk for higher growth.` },
+      'goals-long': { severity: "medium", icon: <WarningIcon />, title: "Boost Long-Term Goal Savings", description: "To meet your long-term goals (> 5 years), ensure you're investing consistently in growth assets like equities or diversified mutual funds." },
+      'retirement': { severity: "high", icon: <WarningIcon />, title: "Accelerate Retirement Savings", description: `Your retirement savings are behind schedule. Consider increasing your contributions to NPS, PPF, or equity mutual funds to build a sufficient corpus.` },
+      'asset-allocation-persona-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Align Investments to Your Persona", description: `As a ${persona}, your portfolio has a high equity allocation (${equityAllocationPercentage.toFixed(0)}%), which may be riskier than you're comfortable with. Consider balancing with debt instruments.` },
+      'asset-allocation-persona-conservative': { severity: "medium", icon: <WarningIcon />, title: "Align Investments to Your Persona", description: `As a ${persona}, your portfolio has a low equity allocation (${equityAllocationPercentage.toFixed(0)}%). You might be missing out on growth opportunities. Consider adding more equity.` },
+      'asset-allocation-age-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio Risk", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is high for your age. While growth is important, consider rebalancing to protect your gains.` },
+      'asset-allocation-age-conservative': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio for Growth", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is conservative for your age. You have a long time horizon to benefit from market growth.` },
     };
 
     return (
@@ -138,13 +138,19 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
                 actionKeys.map(key => {
                     const actionProps = actionMap[key];
                     if (!actionProps) return null;
-                    return <ActionCard key={key} {...actionProps} onStart={() => setSelectedAction(key)} />;
+                    return (
+                        <ActionCard
+                            key={key}
+                            {...actionProps}
+                            onStart={() => setSelectedAction(key)}
+                        />
+                    );
                 })
             ) : (
                 <div className="action-card no-actions-card">
-                    <div className="emoji" role="img" aria-label="Sparkles emoji">🎉</div>
+                    <div className="emoji">🎉</div>
                     <h3>All Clear!</h3>
-                    <p>Your finances are in great shape and there are no immediate actions needed. Keep up the great work!</p>
+                    <p>Your financial health is looking great. Keep up the good work and continue tracking your progress.</p>
                 </div>
             )}
             {selectedAction && <ActionDetailModal actionKey={selectedAction} onClose={() => setSelectedAction(null)} />}

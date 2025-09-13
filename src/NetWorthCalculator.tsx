@@ -26,9 +26,10 @@ const NetWorthCalculator: React.FC<NetWorthCalculatorProps> = ({ data, onUpdate,
     onUpdate({ liabilities: updatedLiabilities });
   };
   
-  // FIX: Explicitly convert values to numbers to prevent type errors in calculations.
-  const totalAssets = useMemo(() => Object.values(assets).reduce((sum, val) => sum + Number(val || 0), 0), [assets]);
-  const totalLiabilities = useMemo(() => Object.values(liabilities).reduce((sum, val) => sum + Number(val || 0), 0), [liabilities]);
+  // FIX: Cast `val` to `Number` to ensure correct type for reduction.
+  const totalAssets = useMemo(() => Object.values(assets).reduce((sum, val) => sum + Number(val), 0), [assets]);
+  // FIX: Cast `val` to `Number` to ensure correct type for reduction.
+  const totalLiabilities = useMemo(() => Object.values(liabilities).reduce((sum, val) => sum + Number(val), 0), [liabilities]);
   const netWorth = useMemo(() => totalAssets - totalLiabilities, [totalAssets, totalLiabilities]);
 
   return (

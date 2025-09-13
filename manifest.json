@@ -1,0 +1,21 @@
+{
+  "name": "Chai - Smart finance, made simple.",
+  "short_name": "Chai",
+  "description": "Chai is a personal financial planning app that makes smart finance simple. Manage your finances, set goals, and achieve financial freedom.",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1C1A19",
+  "theme_color": "#1C1A19"
+}

@@ -47,18 +47,18 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
     }
   };
   
-  // FIX: Cast item to FinancialItem to prevent type errors during calculation.
+  // FIX: Cast `item` to `FinancialItem` to ensure type-safe access.
   const totalMonthlyIncome = useMemo(() => Object.values(income).reduce((sum, item) => {
       if (!item) return sum;
-      const fi = item as FinancialItem;
-      return sum + (fi.frequency === 'monthly' ? fi.value : fi.value / 12);
+      const financialItem = item as FinancialItem;
+      return sum + (financialItem.frequency === 'monthly' ? financialItem.value : financialItem.value / 12);
   }, 0), [income]);
 
-  // FIX: Cast item to FinancialItem to prevent type errors during calculation.
+  // FIX: Cast `item` to `FinancialItem` to ensure type-safe access.
   const totalMonthlyExpenses = useMemo(() => Object.values(expenses).reduce((sum, item) => {
       if (!item) return sum;
-      const fi = item as FinancialItem;
-      return sum + (fi.frequency === 'monthly' ? fi.value : fi.value / 12);
+      const financialItem = item as FinancialItem;
+      return sum + (financialItem.frequency === 'monthly' ? financialItem.value : financialItem.value / 12);
   }, 0), [expenses]);
 
   const monthlySavings = useMemo(() => totalMonthlyIncome - totalMonthlyExpenses, [totalMonthlyIncome, totalMonthlyExpenses]);

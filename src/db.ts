@@ -79,6 +79,37 @@ export interface Financials {
     insurance: Insurance;
 }
 
+// --- Utility Functions ---
+
+/**
+ * Recursively sanitizes an object to be compatible with Supabase JSONB inserts.
+ * - Removes keys with `undefined` values.
+ * - Converts `NaN` or `Infinity` numbers to `null`.
+ * @param obj The object to sanitize.
+ * @returns A new, sanitized object.
+ */
+function sanitizeForSupabase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    if (typeof obj === 'number' && !isFinite(obj)) return null;
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForSupabase);
+  }
+
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== undefined) {
+        newObj[key] = sanitizeForSupabase(value);
+      }
+    }
+  }
+  return newObj;
+}
+
 // --- Data Access Functions ---
 
 let userCounter = 0;
@@ -165,16 +196,19 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
 
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
-    // FIX: The supabase client `insert` method expects the JSONB columns to be of type `Json`. Our `Financials` type is more specific, causing a type mismatch. We cast the properties to `Json` via `unknown` to satisfy the client's type requirements.
+    
+    // Sanitize the object to prevent 400 Bad Request errors from invalid JSON.
+    const sanitizedFinancials = sanitizeForSupabase(financials);
+
     const { error } = await supabase
         .from('financial_snapshots')
         .insert({
             user_id,
-            assets: financials.assets as unknown as Json,
-            liabilities: financials.liabilities as unknown as Json,
-            income: financials.income as unknown as Json,
-            expenses: financials.expenses as unknown as Json,
-            insurance: financials.insurance as unknown as Json,
+            assets: sanitizedFinancials.assets as unknown as Json,
+            liabilities: sanitizedFinancials.liabilities as unknown as Json,
+            income: sanitizedFinancials.income as unknown as Json,
+            expenses: sanitizedFinancials.expenses as unknown as Json,
+            insurance: sanitizedFinancials.insurance as unknown as Json,
         });
 
     if (error) {

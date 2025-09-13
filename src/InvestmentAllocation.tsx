@@ -100,9 +100,8 @@ const AnalyticsBar = ({ title, segments }: { title: string, segments: { label: s
 
 const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
   const { total, allocations, analytics } = useMemo(() => {
-    // FIX: Explicitly convert `value` to a number using Number() to prevent arithmetic errors where it was being treated as 'unknown' or 'symbol'.
     const investmentAssets = Object.entries(assets).filter(([key]) => investmentLabels[key as keyof Assets]);
-    const total = investmentAssets.reduce((sum, [, value]) => sum + Number(value || 0), 0);
+    const total = investmentAssets.reduce((sum, [, value]) => sum + Number(value), 0);
 
     if (total === 0) {
       return { total: 0, allocations: [], analytics: null };
@@ -114,8 +113,8 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
     const allocations = investmentAssets
       .map(([key, value]) => ({
         label: investmentLabels[key as keyof Assets]!,
-        value: Number(value || 0),
-        percentage: total > 0 ? (Number(value || 0) / total) * 100 : 0,
+        value: Number(value),
+        percentage: (Number(value) / total) * 100,
         color: colors[colorIndex++ % colors.length]
       }))
       .filter(item => item.value > 0)
@@ -123,17 +122,17 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
       
     const analytics = {
         riskProfile: [
-            { label: 'Equity', value: investmentCategories.equity.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#4ADE80' },
-            { label: 'Debt', value: investmentCategories.debt.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#60A5FA' },
+            { label: 'Equity', value: investmentCategories.equity.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#4ADE80' },
+            { label: 'Debt', value: investmentCategories.debt.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#60A5FA' },
         ],
         horizon: [
-            { label: 'Long-Term', value: investmentCategories.longTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#A78BFA' },
-            { label: 'Medium-Term', value: investmentCategories.mediumTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#F472B6' },
-            { label: 'Short-Term', value: investmentCategories.shortTerm.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#FBBF24' },
+            { label: 'Long-Term', value: investmentCategories.longTerm.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#A78BFA' },
+            { label: 'Medium-Term', value: investmentCategories.mediumTerm.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#F472B6' },
+            { label: 'Short-Term', value: investmentCategories.shortTerm.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#FBBF24' },
         ],
         purpose: [
-            { label: 'Growth', value: investmentCategories.growth.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#2DD4BF' },
-            { label: 'Savings', value: investmentCategories.savings.reduce((sum, key) => sum + Number(assets[key] || 0), 0), color: '#818CF8' },
+            { label: 'Growth', value: investmentCategories.growth.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#2DD4BF' },
+            { label: 'Savings', value: investmentCategories.savings.reduce((sum, key) => sum + (assets[key] || 0), 0), color: '#818CF8' },
         ]
     }
 
@@ -171,7 +170,9 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
             </div>
           </>
         ) : (
-          <div className="summary-placeholder" style={{flexGrow: 1}}><p>Enter your assets to see your investment allocation.</p></div>
+          <div className="summary-placeholder" style={{flexGrow: 1}}>
+            <p>Enter your assets to see your investment breakdown.</p>
+          </div>
         )}
       </div>
     </div>

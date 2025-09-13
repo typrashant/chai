@@ -13,16 +13,24 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
-        // Use a new request to bypass any browser caching of the files themselves
-        const requests = URLS_TO_CACHE.map(url => new Request(url, { cache: 'reload' }));
-        return cache.addAll(requests);
+        // Use no-cache to ensure we get the latest versions from the server on install
+        const cachePromises = URLS_TO_CACHE.map(url => {
+            const request = new Request(url, { cache: 'no-cache' });
+            return fetch(request).then(response => {
+                if (response.ok) {
+                    return cache.put(request, response);
+                }
+                return Promise.reject(`Failed to fetch ${url}: ${response.statusText}`);
+            });
+        });
+        return Promise.all(cachePromises);
       })
   );
 });
 
 // Fetch: Implements stale-while-revalidate
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') {
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
     return;
   }
 
@@ -36,8 +44,10 @@ self.addEventListener('fetch', event => {
           return networkResponse;
         }).catch(err => {
             console.error('Fetch failed:', err);
+            // This could be a place to return a custom offline page if needed
         });
 
+        // Return cached response immediately if available, and fetch in background
         return response || fetchPromise;
       });
     })

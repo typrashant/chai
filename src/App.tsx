@@ -45,7 +45,7 @@ const Logo = () => (
         <g transform="translate(3,0)"><path className="steam steam-1" d="M22 8 C 25 2, 30 2, 33 8" /><path className="steam steam-2" d="M25 10 C 28 4, 33 4, 36 10" /><path className="steam steam-3" d="M20 12 C 23 6, 28 6, 31 12" /></g>
     </svg>
 );
-const ProfileIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
+const ProfileIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
 const initialFinancials: Financials = {
@@ -63,13 +63,12 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
 
         const age = new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
         const { assets, liabilities, income, expenses, insurance } = financials;
-        
-        // FIX: Explicitly convert object values to numbers to prevent 'unknown' type errors during arithmetic operations.
-        const totalAssets = Object.values(assets || {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        const totalLiabilities = Object.values(liabilities || {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        // FIX: Cast iterated items to FinancialItem to allow safe access to 'frequency' and 'value' properties.
-        const monthlyIncome = Object.values(income || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
-        const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => item ? sum + ((item as FinancialItem).frequency === 'monthly' ? Number((item as FinancialItem).value) : Number((item as FinancialItem).value) / 12) : sum, 0);
+
+        const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
+        const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
+        // FIX: Cast `item` to `FinancialItem` to allow safe access to its properties.
+        const monthlyIncome = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
+        const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
         const monthlySavings = monthlyIncome - monthlyExpenses;
         const netWorth = totalAssets - totalLiabilities;
         // FIX: Changed type from string[] to (keyof Assets)[] for type-safe access to asset properties.
@@ -85,8 +84,8 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         const getRagStatusReversed = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value <= green) return 'green'; if (value <= amber) return 'amber'; return 'red'; };
         
         const savingsRatio = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
-        const emi = expenses.emi as FinancialItem;
-        const monthlyEmi = emi ? (emi.frequency === 'monthly' ? Number(emi.value) : Number(emi.value) / 12) : 0;
+        const emi = expenses.emi;
+        const monthlyEmi = emi ? (emi.frequency === 'monthly' ? emi.value : emi.value / 12) : 0;
         const debtToIncomeRatio = monthlyIncome > 0 ? (monthlyEmi / monthlyIncome) * 100 : 0;
         
         const healthRatios = {
@@ -99,12 +98,12 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
         };
 
         const lifeTarget = annualIncome * 10;
-        const lifeScore = lifeTarget > 0 ? (Number(insurance.life) / lifeTarget) * 100 : (Number(insurance.life) > 0 ? 100 : 0);
+        const lifeScore = lifeTarget > 0 ? (insurance.life / lifeTarget) * 100 : (insurance.life > 0 ? 100 : 0);
         const protectionScores = {
             life: { score: lifeScore, status: getRagStatus(lifeScore, 90, 50) },
-            health: { score: (Number(insurance.health) / 1500000) * 100, status: getRagStatus((Number(insurance.health) / 1500000) * 100, 90, 50) },
-            car: { score: Number(assets.car || 0) > 0 ? (Number(insurance.car) > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (Number(insurance.car) > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
-            property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (Number(insurance.property) > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (Number(insurance.property) > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+            health: { score: (insurance.health / 1500000) * 100, status: getRagStatus((insurance.health / 1500000) * 100, 90, 50) },
+            car: { score: Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+            property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
         };
         
         const goalsByTerm = { short: { value: 0 }, medium: { value: 0 }, long: { value: 0 } };
@@ -185,7 +184,6 @@ const App = () => {
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -213,14 +211,6 @@ const App = () => {
     };
     checkUser();
   }, []);
-  
-  useEffect(() => {
-    if (saveError) {
-        const timer = setTimeout(() => setSaveError(null), 5000); // Hide after 5 seconds
-        return () => clearTimeout(timer);
-    }
-  }, [saveError]);
-
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
@@ -257,37 +247,28 @@ const App = () => {
       }
   }
   
-  const handleSaveAndCloseCalculators = (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
-    if (source === 'netWorth') setIsNetWorthOpen(false);
-    if (source === 'monthlyFinances') setIsMonthlyFinancesOpen(false);
-
+  const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
     if (currentUser && financials) {
-        // Run save and award points in the background
-        (async () => {
-            const success = await createFinancialSnapshot(currentUser.user_id, financials);
-            if (success) {
-                await handleAwardPoints(source, buttonElement, REWARD_POINTS[source]);
-            } else {
-                setSaveError('Your changes could not be saved. Please check your connection.');
-            }
-        })();
+        await createFinancialSnapshot(currentUser.user_id, financials);
+        if (source === 'netWorth') {
+            await handleAwardPoints('netWorth', buttonElement, REWARD_POINTS.netWorth);
+            setIsNetWorthOpen(false);
+        }
+        if (source === 'monthlyFinances') {
+            await handleAwardPoints('monthlyFinances', buttonElement, REWARD_POINTS.monthlyFinances);
+            setIsMonthlyFinancesOpen(false);
+        }
     }
   };
 
-  const handleProtectionToggle = (buttonElement: HTMLButtonElement) => {
+  const handleProtectionToggle = async (buttonElement: HTMLButtonElement) => {
       if (!isProtectionOpen) {
           setIsProtectionOpen(true);
       } else {
         setIsProtectionOpen(false);
         if (currentUser && financials) {
-            (async () => {
-                const success = await createFinancialSnapshot(currentUser.user_id, financials);
-                if(success) {
-                    await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
-                } else {
-                    setSaveError('Your changes could not be saved. Please check your connection.');
-                }
-            })();
+            await createFinancialSnapshot(currentUser.user_id, financials);
+            await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
         }
       }
   };
@@ -299,49 +280,17 @@ const App = () => {
       setIsGoalsOpen(!isGoalsOpen);
   }
 
-  const handleAddGoal = (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
-    if(currentUser && goals) {
-        // Optimistic update
-        const tempId = `temp_${Date.now()}`;
-        const tempGoal: Goal = { 
-            ...goal, 
-            goal_id: tempId, 
-            user_id: currentUser.user_id, 
-            created_at: new Date().toISOString(), 
-            is_achieved: false 
-        };
-        setGoals([...goals, tempGoal]);
-
-        // DB operation in background
-        (async () => {
-            const newGoalFromDb = await addUserGoal(currentUser.user_id, goal);
-            if(newGoalFromDb) {
-                // Replace temp goal with real one from DB
-                setGoals(currentGoals => (currentGoals || []).map(g => g.goal_id === tempId ? newGoalFromDb : g));
-            } else {
-                // Revert on failure
-                setGoals(currentGoals => (currentGoals || []).filter(g => g.goal_id !== tempId));
-                setSaveError('Failed to add goal. Please try again.');
-            }
-        })();
+  const handleAddGoal = async (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
+    if(currentUser) {
+        const newGoal = await addUserGoal(currentUser.user_id, goal);
+        if(newGoal && goals) setGoals([...goals, newGoal]);
     }
   }
   
-  const handleRemoveGoal = (goalId: string) => {
-    if(currentUser && goals) {
-        const originalGoals = goals;
-        // Optimistic update
-        setGoals(originalGoals.filter(g => g.goal_id !== goalId));
-
-        // DB operation in background
-        (async () => {
-            const success = await removeUserGoal(goalId);
-            if(!success) {
-                // Revert on failure
-                setGoals(originalGoals);
-                setSaveError('Failed to remove goal. Please try again.');
-            }
-        })();
+  const handleRemoveGoal = async (goalId: string) => {
+    if(currentUser) {
+        const success = await removeUserGoal(goalId);
+        if(success && goals) setGoals(goals.filter(g => g.goal_id !== goalId));
     }
   }
 
@@ -444,13 +393,6 @@ const App = () => {
             <MyPlan metrics={metrics} user={currentUser} />
         )}
       </main>
-      
-      {saveError && (
-        <div className="error-toast" role="alert">
-            <span>{saveError}</span>
-            <button onClick={() => setSaveError(null)} aria-label="Dismiss error">&times;</button>
-        </div>
-      )}
       
       {pointsAnimation && <div key={pointsAnimation.key} className="points-toast" style={{ left: `${pointsAnimation.x}px`, top: `${pointsAnimation.y}px` }}>+ {pointsAnimation.amount} ✨</div>}
       
