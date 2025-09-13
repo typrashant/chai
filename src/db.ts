@@ -197,10 +197,10 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
     
-    // Sanitize the object to prevent 400 Bad Request errors from invalid JSON.
+    console.log("Attempting to create financial snapshot for user:", user_id);
     const sanitizedFinancials = sanitizeForSupabase(financials);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('financial_snapshots')
         .insert({
             user_id,
@@ -209,28 +209,65 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
             income: sanitizedFinancials.income as unknown as Json,
             expenses: sanitizedFinancials.expenses as unknown as Json,
             insurance: sanitizedFinancials.insurance as unknown as Json,
-        });
+        })
+        .select(); // Request data back to confirm insert and expose RLS issues.
 
     if (error) {
-        console.error('Error creating financial snapshot:', error);
+        console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
+        alert(`Failed to save financial data: ${error.message}. Please check your browser console for details. This could be a database permission (RLS) issue.`);
         return false;
     }
+
+    console.log("Successfully created snapshot:", data);
     return true;
 }
 
-export const updateUserPersona = async (user_id: string, persona: string): Promise<boolean> => {
-    if (!supabase) return false;
-    const { error } = await supabase
+export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    console.log("Attempting to update persona and award points for user:", user_id);
+
+    const { data: currentProfile, error: getError } = await supabase
         .from('app_users')
-        .update({ persona, updated_at: new Date().toISOString() })
-        .eq('user_id', user_id);
-        
-    if (error) {
-        console.error('Error updating persona:', error);
-        return false;
+        .select('points, points_source')
+        .eq('user_id', user_id)
+        .single();
+
+    if (getError || !currentProfile) {
+        console.error('Could not fetch user to award points:', JSON.stringify(getError, null, 2));
+        alert(`Failed to fetch user profile to save persona: ${getError?.message}.`);
+        return null;
     }
-    return true;
+    
+    const currentPointsSource = (currentProfile.points_source as { [key: string]: boolean }) || {};
+    const POINTS_FOR_QUIZ = 30;
+    
+    const updates: Database['public']['Tables']['app_users']['Update'] = {
+        persona,
+        updated_at: new Date().toISOString()
+    };
+
+    if (!currentPointsSource['personaQuiz']) {
+        updates.points = (currentProfile.points || 0) + POINTS_FOR_QUIZ;
+        updates.points_source = { ...currentPointsSource, personaQuiz: true };
+    }
+
+    const { data, error } = await supabase
+        .from('app_users')
+        .update(updates)
+        .eq('user_id', user_id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating persona and points:', JSON.stringify(error, null, 2));
+        alert(`Failed to save persona: ${error.message}. Please check console for details. This could be a database permission (RLS) issue.`);
+        return null;
+    }
+
+    console.log("Successfully updated user profile:", data);
+    return data;
 }
+
 
 export const awardPoints = async (user_id: string, source: string, pointsToAdd: number, currentProfile: UserProfile): Promise<UserProfile | null> => {
     if (!supabase) return null;

@@ -12,6 +12,7 @@ import RetirementTracker from './RetirementTracker.tsx';
 import PowerOfSavingCard from './PowerOfSavingCard.tsx';
 import MyPlan from './MyPlan.tsx';
 import { HomeIcon, PlanIcon } from './icons.tsx';
+import MonthlyCashflowCard from './MonthlyCashflowCard.tsx';
 import {
     type UserProfile,
     type Financials,
@@ -25,7 +26,7 @@ import {
     awardPoints,
     addUserGoal,
     removeUserGoal,
-    updateUserPersona,
+    updateUserPersonaAndAwardPoints,
     getUserProfile,
 } from './db.ts';
 
@@ -223,33 +224,37 @@ const App = () => {
     setIsLoading(false);
   };
   
-  const handleAwardPoints = async (source: string, element: HTMLElement, points: number, profile?: UserProfile) => {
-    const userToUpdate = profile || currentUser;
-    if (!userToUpdate) return;
+  const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
+    if (!currentUser) return;
 
-    const updatedUserWithPoints = await awardPoints(userToUpdate.user_id, source, points, userToUpdate);
-    const finalUserToSet = updatedUserWithPoints || profile;
+    const updatedUser = await awardPoints(currentUser.user_id, source, points, currentUser);
 
-    if (finalUserToSet) {
-        setCurrentUser(finalUserToSet);
-
-        if (updatedUserWithPoints && updatedUserWithPoints.points !== userToUpdate.points) {
+    if (updatedUser) {
+        if (updatedUser.points !== currentUser.points) {
             const rect = element.getBoundingClientRect();
             setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: points, key: Date.now() });
         }
+        setCurrentUser(updatedUser);
     }
   };
 
   const handleQuizComplete = async (user: UserProfile, persona: string) => {
-      const userWithPersona = await updateUserPersona(user.user_id, persona);
-      if (userWithPersona) {
-          await handleAwardPoints('personaQuiz', document.body, 30, userWithPersona);
-      }
+    const updatedUser = await updateUserPersonaAndAwardPoints(user.user_id, persona);
+    if (updatedUser) {
+        const oldPoints = currentUser?.points || 0;
+        if (updatedUser.points > oldPoints) {
+            const rect = document.body.getBoundingClientRect();
+            setPointsAnimation({ x: rect.left + rect.width / 2, y: rect.top, amount: updatedUser.points - oldPoints, key: Date.now() });
+        }
+        setCurrentUser(updatedUser);
+    }
   }
   
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
     if (currentUser && financials) {
-        await createFinancialSnapshot(currentUser.user_id, financials);
+        const success = await createFinancialSnapshot(currentUser.user_id, financials);
+        if (!success) return; // Stop if saving failed
+
         if (source === 'netWorth') {
             await handleAwardPoints('netWorth', buttonElement, REWARD_POINTS.netWorth);
             setIsNetWorthOpen(false);
@@ -267,8 +272,10 @@ const App = () => {
       } else {
         setIsProtectionOpen(false);
         if (currentUser && financials) {
-            await createFinancialSnapshot(currentUser.user_id, financials);
-            await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
+            const success = await createFinancialSnapshot(currentUser.user_id, financials);
+            if (success) {
+                await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
+            }
         }
       }
   };
@@ -348,33 +355,15 @@ const App = () => {
                 {isMonthlyFinancesOpen ? (
                     <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
                 ) : (
-                    <div className="card summary-card">
-                        <div className="summary-card-header">
-                            <div className="summary-card-title-group">
-                                <h2>Monthly Cashflow</h2>
-                                {!hasCompleted('monthlyFinances') && <div className="potential-points">✨ {REWARD_POINTS.monthlyFinances} Points</div>}
-                            </div>
-                            <button className="update-button" onClick={() => setIsMonthlyFinancesOpen(true)}>{hasCompleted('monthlyFinances') ? 'Update' : 'Calculate'}</button>
-                        </div>
-                        {hasCompleted('monthlyFinances') ? (
-                             <div className="cashflow-absolute-summary" style={{margin: 'auto 0'}}>
-                                <div className="summary-item">
-                                    <span>Income</span>
-                                    <strong>{formatCurrency(metrics.monthlyIncome || 0)}</strong>
-                                </div>
-                                <div className="summary-item">
-                                    <span>Expenses</span>
-                                    <strong>{formatCurrency(metrics.monthlyExpenses || 0)}</strong>
-                                </div>
-                                 <div className="summary-item">
-                                    <span>Savings</span>
-                                    <strong>{formatCurrency(metrics.monthlySavings || 0)}</strong>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="summary-placeholder"><p>Track your income and expenses to see your cashflow.</p></div>
-                        )}
-                    </div>
+                    <MonthlyCashflowCard
+                        expenses={financials.expenses}
+                        monthlyIncome={metrics.monthlyIncome}
+                        monthlyExpenses={metrics.monthlyExpenses}
+                        monthlySavings={metrics.monthlySavings}
+                        onToggle={() => setIsMonthlyFinancesOpen(true)}
+                        isCompleted={hasCompleted('monthlyFinances')}
+                        potentialPoints={REWARD_POINTS.monthlyFinances}
+                    />
                 )}
                 
                 <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
