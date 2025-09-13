@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from './supabaseClient.ts';
+import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
 import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
@@ -194,6 +194,10 @@ const App = () => {
     }
 
     const checkUser = async () => {
+        if (!supabase) {
+            setIsLoading(false);
+            return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);

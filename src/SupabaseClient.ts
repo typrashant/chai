@@ -144,6 +144,6 @@ export type Json =
 export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
 // Only create a client if the config is valid, otherwise export null.
-export const supabase = isSupabaseConfigured
+export const supabase = isSupabaseConfigured && typeof supabaseUrl === 'string' && typeof supabaseAnonKey === 'string'
   ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string)
   : null;
