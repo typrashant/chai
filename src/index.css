@@ -255,10 +255,7 @@ main {
     grid-column: span 1 / span 1;
   }
   .goals-card-content {
-    display: block; /* More robust stacking for mobile */
-  }
-  .goals-card-content > div:not(:last-child) {
-      margin-bottom: 1.5rem;
+    grid-template-columns: 1fr; /* More robust stacking for mobile */
   }
 }
 
