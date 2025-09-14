@@ -31,9 +31,9 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
     const age = useMemo(() => {
-        if (!user.date_of_birth) return undefined;
-        return new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
-    }, [user.date_of_birth]);
+        if (!user.age) return undefined;
+        return user.age;
+    }, [user.age]);
 
     if (!metrics) {
         return (

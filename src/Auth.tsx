@@ -69,187 +69,187 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
 
     const fullPhoneNumber = `+91${phone}`;
 
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: fullPhoneNumber,
-    });
+    const { error } = await supabase.auth.signInWithOtp({ phone: fullPhoneNumber });
 
     if (error) {
       setError(error.message);
     } else {
-      setStep(2); // Move to OTP step
+      setStep(2);
     }
     setIsLoading(false);
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
     setIsLoading(true);
     setError('');
-    
-    if (!/^\d{6}$/.test(otp)) {
-      setError('Please enter a valid 6-digit OTP.');
-      setIsLoading(false);
-      return;
-    }
 
     const fullPhoneNumber = `+91${phone}`;
+
     const { data: { session }, error } = await supabase.auth.verifyOtp({
       phone: fullPhoneNumber,
       token: otp,
-      type: 'sms',
+      type: 'sms'
     });
 
     if (error) {
       setError(error.message);
-    } else if (session) {
-      const userProfile = await getUserProfile(session.user.id);
-      if (userProfile) {
-        // Existing user, log them in
-        onLoginSuccess(userProfile);
+      setIsLoading(false);
+      return;
+    }
+
+    if (session) {
+      const existingProfile = await getUserProfile(session.user.id);
+      if (existingProfile) {
+        onLoginSuccess(existingProfile);
       } else {
-        // New user, go to demographics
+        // New user, proceed to demographics
         setStep(3);
       }
     }
     setIsLoading(false);
   };
-  
+
   const handleDemographicsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
+    
+    if (age === '' || Number(age) < 0 || Number(age) > 120) {
+        setError("Please enter a valid age between 0 and 120.");
+        return;
+    }
+    if (!gender) {
+        setError("Please select your gender.");
+        return;
+    }
+    
     setIsLoading(true);
     setError('');
 
-    if (!age || !gender) {
-      setError('Please provide your age and gender.');
-      setIsLoading(false);
-      return;
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
+
     if (user) {
-        const dateOfBirth = new Date();
-        dateOfBirth.setFullYear(dateOfBirth.getFullYear() - parseInt(age, 10));
+      const newProfile = await createNewUserProfile(
+        user.id,
+        name,
+        `+91${phone}`,
+        Number(age),
+        gender,
+        dependents,
+        profession
+      );
 
-        const newUserProfile = await createNewUserProfile(
-            user.id,
-            name,
-            user.phone!,
-            dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
-            gender,
-            dependents,
-            profession
-        );
-
-        if (newUserProfile) {
-            onLoginSuccess(newUserProfile);
-        } else {
-            setError('Could not create your profile. Please try again.');
-        }
+      if (newProfile) {
+        onLoginSuccess(newProfile);
+      } else {
+        setError('There was an error creating your profile. Please try again.');
+        setIsLoading(false);
+      }
     } else {
         setError('Session expired. Please start over.');
+        setStep(1);
+        setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  return (
-    <div className="container auth-container">
-      <Logo />
-      {step === 1 && <h2 className="auth-title">Smart finance, made simple.</h2>}
-      <div className="auth-form">
-        {step === 1 && (
-             <div className="auth-toggle">
-                <button 
-                    className={authMode === 'signup' ? 'active' : ''} 
-                    onClick={() => { setAuthMode('signup'); resetForm(); }}
-                    aria-pressed={authMode === 'signup'}
-                >
-                    Sign Up
-                </button>
-                <button 
-                    className={authMode === 'signin' ? 'active' : ''} 
-                    onClick={() => { setAuthMode('signin'); resetForm(); }}
-                    aria-pressed={authMode === 'signin'}
-                >
-                    Sign In
-                </button>
-            </div>
-        )}
 
-        {step === 1 && (
+  const renderForm = () => {
+    switch (step) {
+      case 1:
+        return (
           <form onSubmit={handlePhoneSubmit}>
             {authMode === 'signup' && (
-                <div className="form-group">
+              <div className="form-group">
                 <label htmlFor="name">Full Name</label>
-                <input id="name" type="text" placeholder="e.g., Priya Sharma" value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
+                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
+              </div>
             )}
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>
               <div className="phone-input-container">
                   <span className="country-code">+91</span>
-                  <input id="phone" type="tel" placeholder="1234567890" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={10} required />
+                  <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="9876543210" required />
               </div>
             </div>
             {error && <p className="error">{error}</p>}
-            <button type="submit" className="auth-button" disabled={isLoading}>
-              {isLoading ? 'Sending...' : (authMode === 'signup' ? 'Get OTP' : 'Sign In')}
+            <button className="auth-button" type="submit" disabled={isLoading}>
+              {isLoading ? 'Sending OTP...' : 'Get OTP'}
             </button>
           </form>
-        )}
-
-        {step === 2 && (
-          <form onSubmit={handleVerifyOtp}>
-            <h2 className="otp-title">Enter OTP</h2>
-            <p>A 6-digit code was sent to your phone.</p>
+        );
+      case 2:
+        return (
+          <form onSubmit={handleOtpSubmit}>
+            <p className="otp-title">Enter the 4-digit OTP sent to your phone.</p>
             <div className="form-group">
-              <label htmlFor="otp">Verification Code</label>
-              <input id="otp" type="text" inputMode="numeric" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} required />
+              <label htmlFor="otp">OTP</label>
+              <input id="otp" type="number" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="1234" required />
             </div>
             {error && <p className="error">{error}</p>}
-            <button type="submit" className="auth-button" disabled={isLoading}>
+            <button className="auth-button" type="submit" disabled={isLoading}>
               {isLoading ? 'Verifying...' : 'Verify & Continue'}
             </button>
           </form>
-        )}
-
-        {step === 3 && (
+        );
+      case 3:
+        return (
           <form onSubmit={handleDemographicsSubmit}>
             <h2>A little about you...</h2>
-            <p>This helps us personalize your experience.</p>
+            <p>This helps us personalize your financial plan.</p>
+             <div className="form-group">
+                <label htmlFor="age">Age</label>
+                <input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g., 28" required />
+              </div>
             <div className="form-group">
-              <label htmlFor="age">Your Age</label>
-              <input id="age" type="number" placeholder="e.g., 28" value={age} onChange={(e) => setAge(e.target.value)} required />
+              <label>Gender</label>
+              <div className="gender-selection">
+                <button type="button" className={`gender-button ${gender === 'Male' ? 'active' : ''}`} onClick={() => setGender('Male')}><MaleIcon /> Male</button>
+                <button type="button" className={`gender-button ${gender === 'Female' ? 'active' : ''}`} onClick={() => setGender('Female')}><FemaleIcon /> Female</button>
+              </div>
             </div>
             <div className="form-group">
-                <label>What's your craft?</label>
-                <div className="binary-toggle">
-                    <button type="button" className={profession === 'Salaried' ? 'active' : ''} onClick={() => setProfession('Salaried')}>Salaried</button>
-                    <button type="button" className={profession === 'Self-employed' ? 'active' : ''} onClick={() => setProfession('Self-employed')}>Self-employed</button>
-                </div>
+                <label htmlFor="profession">Profession</label>
+                <select id="profession" value={profession} onChange={e => setProfession(e.target.value as 'Salaried' | 'Self-employed')}>
+                    <option value="Salaried">Salaried</option>
+                    <option value="Self-employed">Self-employed</option>
+                </select>
             </div>
             <div className="form-group">
-                <label>Gender</label>
-                <div className="gender-selection">
-                    <button type="button" className={`gender-button ${gender === 'Male' ? 'active' : ''}`} onClick={() => setGender('Male')}><MaleIcon /> Male</button>
-                    <button type="button" className={`gender-button ${gender === 'Female' ? 'active' : ''}`} onClick={() => setGender('Female')}><FemaleIcon /> Female</button>
-                </div>
-            </div>
-            <div className="form-group">
-                <label>Number of Dependents</label>
-                <div className="dependents-selector">
-                    {Array.from({ length: 7 }, (_, i) => i).map(num => (
-                        <button key={num} type="button" className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>{num}</button>
-                    ))}
-                </div>
+              <label>Number of Dependents</label>
+              <div className="dependents-selector">
+                {[0, 1, 2, 3, 4].map(num => (
+                  <button type="button" key={num} className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>{num === 4 ? '4+' : num}</button>
+                ))}
+              </div>
             </div>
             {error && <p className="error">{error}</p>}
-            <button type="submit" className="auth-button" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Finish & Start'}
+            <button className="auth-button" type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Finish Setup'}
             </button>
           </form>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="container auth-container">
+      <Logo />
+      <h1 className="auth-title">Chai - Smart finance, made simple.</h1>
+      <div className="auth-form">
+        {step < 3 && (
+          <>
+            <h2>Welcome to Chai!</h2>
+            <p>{authMode === 'signup' ? 'Create an account to get started.' : 'Sign in to access your dashboard.'}</p>
+            <div className="auth-toggle">
+              <button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); resetForm(); }}>Sign Up</button>
+              <button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); resetForm(); }}>Sign In</button>
+            </div>
+          </>
         )}
+        {renderForm()}
       </div>
     </div>
   );

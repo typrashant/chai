@@ -60,9 +60,9 @@ const initialFinancials: Financials = {
 // This custom hook centralizes all financial calculations.
 const useFinancialMetrics = (financials: Financials | null, user: UserProfile | null, goals: Goal[] | null) => {
     return useMemo(() => {
-        if (!user || !financials || !goals || !user.date_of_birth) return null;
+        if (!user || !financials || !goals || !user.age) return null;
 
-        const age = new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
+        const age = user.age;
         const { assets, liabilities, income, expenses, insurance } = financials;
 
         const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
@@ -193,10 +193,6 @@ const App = () => {
     }
 
     const checkUser = async () => {
-        if (!supabase) {
-            setIsLoading(false);
-            return;
-        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
@@ -301,6 +297,15 @@ const App = () => {
     }
   }
 
+  const handleLogout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setFinancials(null);
+    setGoals(null);
+    setIsProfileOpen(false);
+  };
+
   const metrics = useFinancialMetrics(financials, currentUser, goals);
 
   if (!isSupabaseConfigured) {
@@ -336,6 +341,8 @@ const App = () => {
                 <div className="profile-dropdown-item"><span>Persona</span><strong>{currentUser.persona}</strong></div>
                 <div className="profile-dropdown-item"><span>Client ID</span><strong>{currentUser.client_id}</strong></div>
                 <div className="profile-dropdown-item"><span>App Version</span><strong>{APP_VERSION}</strong></div>
+                <div className="profile-dropdown-divider"></div>
+                <button className="logout-button" onClick={handleLogout}>Logout</button>
             </div>
         )}
       </header>
@@ -366,17 +373,18 @@ const App = () => {
                     />
                 )}
                 
-                <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
-
                 <FinancialHealthCard ratios={metrics.healthRatios} />
 
+                <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
+
+                <PowerOfSavingCard />
+                
                 <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
 
                 <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
 
                 <InvestmentAllocation assets={financials.assets} />
 
-                <PowerOfSavingCard />
             </div>
         ) : (
             <MyPlan metrics={metrics} user={currentUser} />

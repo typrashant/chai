@@ -34,9 +34,9 @@ export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal,
     }, [goals]);
     
     const age = useMemo(() => {
-        if (!user.date_of_birth) return 18;
-        return new Date().getFullYear() - new Date(user.date_of_birth).getFullYear();
-    }, [user.date_of_birth]);
+        if (!user.age) return 18;
+        return user.age;
+    }, [user.age]);
 
     const handleAddGoal = (e: React.FormEvent) => {
         e.preventDefault();

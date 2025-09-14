@@ -43,19 +43,20 @@ function sanitizeForSupabase(obj: any): any {
 
 // --- Data Access Functions ---
 
-let userCounter = 0;
 const generateClientID = (): string => {
-  userCounter++;
-  const yearMonth = '2407';
-  const sequence = String(userCounter).padStart(7, '0');
-  return `IN${yearMonth}${sequence}`;
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  // Use a high-res timestamp and a random number to ensure uniqueness without state.
+  const uniquePart = `${now.getTime().toString().slice(-6)}${Math.floor(Math.random() * 10)}`;
+  return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
   phone_number: string,
-  dob: string,
+  age: number,
   gender: string,
   dependents: number,
   profession: string
@@ -64,16 +65,16 @@ export const createNewUserProfile = async (
     const client_id = generateClientID(); 
     const { data, error } = await supabase
         .from('app_users')
-        .insert({
+        .insert([{
             user_id,
             name,
             phone_number,
             client_id,
-            date_of_birth: dob,
+            age,
             gender,
             dependents,
             profession,
-        } as any) // FIX: Use 'as any' to bypass Supabase's incorrect type inference for PKs that are also FKs.
+        }])
         .select()
         .single();
         
@@ -81,7 +82,13 @@ export const createNewUserProfile = async (
         console.error('Error creating user profile:', error);
         return null;
     }
-    return data;
+
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
+    
+    return null;
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
@@ -96,14 +103,20 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         console.error('Error fetching user profile:', error);
         return null;
     }
-    return data;
+    
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
+
+    return null;
 }
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('financial_snapshots')
-        .select('snapshot_data') // More efficient: only select the column we need
+        .select('snapshot_data') 
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
         .limit(1)
@@ -114,9 +127,8 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
         return null;
     }
     
-    // FIX: Add a robust type guard to safely access snapshot_data.
-    // This satisfies the strict type checker which warns that `data` could be an error object.
-    if (data && 'snapshot_data' in data) {
+    if (!data) return null;
+    if ('snapshot_data' in data) {
       return data.snapshot_data;
     }
     
@@ -131,15 +143,15 @@ export const createFinancialSnapshot = async (user_id: string, financials: Finan
 
     const { data, error } = await supabase
         .from('financial_snapshots')
-        .insert({
+        .insert([{
             user_id,
             snapshot_data: sanitizedFinancials as Financials,
-        })
-        .select(); // Request data back to confirm insert and expose RLS issues.
+        }])
+        .select(); 
 
     if (error) {
         console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
-        alert(`Failed to save financial data: ${error.message}. Please check your browser console for details. This could be a database permission (RLS) issue.`);
+        console.error(`Failed to save financial data: ${error.message}. This could be a database permission (RLS) issue.`);
         return false;
     }
 
@@ -159,7 +171,7 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
 
     if (getError || !currentProfile) {
         console.error('Could not fetch user to award points:', JSON.stringify(getError, null, 2));
-        alert(`Failed to fetch user profile to save persona: ${getError?.message}.`);
+        console.error(`Failed to fetch user profile to save persona: ${getError?.message}.`);
         return null;
     }
     
@@ -185,12 +197,18 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
 
     if (error) {
         console.error('Error updating persona and points:', JSON.stringify(error, null, 2));
-        alert(`Failed to save persona: ${error.message}. Please check console for details. This could be a database permission (RLS) issue.`);
+        console.error(`Failed to save persona: ${error.message}. This could be a database permission (RLS) issue.`);
         return null;
     }
 
     console.log("Successfully updated user profile:", data);
-    return data;
+    
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
+
+    return null;
 }
 
 
@@ -205,22 +223,23 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
     const newPoints = currentProfile.points + pointsToAdd;
     const newPointsSource = { ...currentPointsSource, [source]: true };
     
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('app_users')
         .update({ points: newPoints, points_source: newPointsSource })
-        .eq('user_id', user_id);
+        .eq('user_id', user_id)
+        .select()
+        .single();
     
     if (error) {
         console.error('Error awarding points:', error);
         return null;
     }
 
-    // On success, return the optimistically updated profile
-    return {
-        ...currentProfile,
-        points: newPoints,
-        points_source: newPointsSource,
-    };
+    if (data && 'user_id' in data) {
+        return data;
+    }
+    
+    return null;
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
@@ -241,12 +260,12 @@ export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('goals')
-        .insert({
+        .insert([{
             user_id,
             goal_name: goal.goal_name,
             target_age: goal.target_age,
             target_value: goal.target_value,
-        })
+        }])
         .select()
         .single();
 

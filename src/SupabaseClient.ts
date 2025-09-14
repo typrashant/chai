@@ -100,7 +100,7 @@ export interface Database {
           client_id: string;
           name: string;
           phone_number: string;
-          date_of_birth: string;
+          age: number;
           gender: string | null;
           profession: string | null;
           dependents: number | null;
@@ -115,7 +115,7 @@ export interface Database {
           client_id: string;
           name: string;
           phone_number: string;
-          date_of_birth: string;
+          age: number;
           gender?: string | null;
           profession?: string | null;
           dependents?: number | null;
@@ -125,7 +125,7 @@ export interface Database {
         };
         Update: { // The data shape needed to update a row.
           name?: string;
-          date_of_birth?: string;
+          age?: number;
           gender?: string | null;
           profession?: string | null;
           dependents?: number | null;
@@ -253,6 +253,6 @@ export type Json =
 export const isSupabaseConfigured = supabaseUrl && supabaseAnonKey;
 
 // Only create a client if the config is valid, otherwise export null.
-export const supabase = isSupabaseConfigured
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+export const supabase = isSupabaseConfigured && typeof supabaseUrl === 'string' && typeof supabaseAnonKey === 'string'
+  ? createClient<Database>(supabaseUrl as string, supabaseAnonKey as string)
   : null;
