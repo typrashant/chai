@@ -165,26 +165,28 @@ export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal,
                 <div className="goals-list-section">
                     <h3>Your Goals</h3>
                     {goals.length > 0 ? (
-                        <table className="goal-summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Goal</th>
-                                    <th>Years to Go</th>
-                                    <th>Value</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {goals.sort((a,b) => a.target_age - b.target_age).map(goal => (
-                                    <tr key={goal.goal_id}>
-                                        <td>{goal.goal_name}</td>
-                                        <td>{goal.target_age - startAge} years</td>
-                                        <td>{formatCurrency(goal.target_value)}</td>
-                                        <td><button className="delete-goal-btn" onClick={() => onRemoveGoal(goal.goal_id)}>✕</button></td>
+                        <div className="table-wrapper">
+                            <table className="goal-summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Goal</th>
+                                        <th>Years to Go</th>
+                                        <th>Value</th>
+                                        <th></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {goals.sort((a,b) => a.target_age - b.target_age).map(goal => (
+                                        <tr key={goal.goal_id}>
+                                            <td>{goal.goal_name}</td>
+                                            <td>{goal.target_age - startAge} years</td>
+                                            <td>{formatCurrency(goal.target_value)}</td>
+                                            <td><button className="delete-goal-btn" onClick={() => onRemoveGoal(goal.goal_id)}>✕</button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : <p style={{ color: '#666', textAlign: 'center' }}>No goals added yet. Use the timeline above.</p>}
                 </div>
             </div>
