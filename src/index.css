@@ -255,7 +255,7 @@ main {
     grid-column: span 1 / span 1;
   }
   .goals-card-content {
-    grid-template-columns: 1fr; /* More robust stacking for mobile */
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1187,15 +1187,15 @@ main {
     grid-column: 1 / -1;
 }
 
-.goals-editor-section {
-  min-width: 0; /* Prevents grid item from overflowing due to wide scrollable content */
-}
-
 .goals-card-content {
     display: grid;
     grid-template-columns: 1fr 1.5fr;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
+}
+
+.goals-editor-section {
+    min-width: 0; /* Fix for grid item with scrollable content */
 }
 
 .timeline-container {
@@ -1266,39 +1266,25 @@ main {
 }
 
 .table-wrapper {
-  overflow-x: auto; /* Enable horizontal scrolling */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+    overflow-x: auto;
 }
 
 .goal-summary-table {
     width: 100%;
-    min-width: 450px; /* Prevent squishing */
+    min-width: 300px; /* Prevent squishing on very small screens */
     border-collapse: collapse;
 }
-
 .goal-summary-table th, .goal-summary-table td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     font-size: 0.8rem;
-    white-space: nowrap; /* Prevent content from wrapping */
+    white-space: nowrap;
 }
-
-.goal-summary-table tr:last-child td {
-  border-bottom: none;
-}
-
 .goal-summary-table th {
     color: var(--text-color-light);
     font-weight: 600;
-    background-color: var(--card-background); /* Match card background */
-    position: sticky;
-    top: 0;
-    z-index: 1;
 }
-
 .goal-summary-table td:nth-child(3) {
     font-weight: 600;
 }
