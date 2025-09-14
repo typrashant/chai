@@ -74,6 +74,8 @@ export const createNewUserProfile = async (
             gender,
             dependents,
             profession,
+            points: 70, // Award initial points for completing sign-up
+            points_source: { demographics: true }, // Mark the source of points
         }])
         .select()
         .single();
