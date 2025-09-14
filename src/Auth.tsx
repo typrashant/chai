@@ -181,10 +181,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       case 2:
         return (
           <form onSubmit={handleOtpSubmit}>
-            <p className="otp-title">Enter the 4-digit OTP sent to your phone.</p>
+            <p className="otp-title">Enter the 6-digit OTP sent to your phone.</p>
             <div className="form-group">
               <label htmlFor="otp">OTP</label>
-              <input id="otp" type="number" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="1234" required />
+              <input id="otp" type="number" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="123456" required />
             </div>
             {error && <p className="error">{error}</p>}
             <button className="auth-button" type="submit" disabled={isLoading}>
@@ -209,17 +209,17 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
             <div className="form-group">
-                <label htmlFor="profession">Profession</label>
-                <select id="profession" value={profession} onChange={e => setProfession(e.target.value as 'Salaried' | 'Self-employed')}>
-                    <option value="Salaried">Salaried</option>
-                    <option value="Self-employed">Self-employed</option>
-                </select>
+                <label>Profession</label>
+                <div className="binary-toggle">
+                    <button type="button" className={profession === 'Salaried' ? 'active' : ''} onClick={() => setProfession('Salaried')}>Salaried</button>
+                    <button type="button" className={profession === 'Self-employed' ? 'active' : ''} onClick={() => setProfession('Self-employed')}>Self-employed</button>
+                </div>
             </div>
             <div className="form-group">
               <label>Number of Dependents</label>
               <div className="dependents-selector">
-                {[0, 1, 2, 3, 4].map(num => (
-                  <button type="button" key={num} className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>{num === 4 ? '4+' : num}</button>
+                {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                  <button type="button" key={num} className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>{num === 6 ? '6+' : num}</button>
                 ))}
               </div>
             </div>

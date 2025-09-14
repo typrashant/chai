@@ -193,6 +193,10 @@ const App = () => {
     }
 
     const checkUser = async () => {
+        if (!supabase) {
+            setIsLoading(false);
+            return;
+        }
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             const profile = await getUserProfile(session.user.id);
@@ -286,14 +290,20 @@ const App = () => {
   const handleAddGoal = async (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
     if(currentUser) {
         const newGoal = await addUserGoal(currentUser.user_id, goal);
-        if(newGoal && goals) setGoals([...goals, newGoal]);
+        if(newGoal) {
+            // Using functional update to prevent stale state issues, ensuring the new goal is always added to the latest goal list.
+            setGoals(prevGoals => [...(prevGoals || []), newGoal]);
+        }
     }
   }
   
   const handleRemoveGoal = async (goalId: string) => {
     if(currentUser) {
         const success = await removeUserGoal(goalId);
-        if(success && goals) setGoals(goals.filter(g => g.goal_id !== goalId));
+        if(success) {
+            // Using functional update to ensure a goal is removed from the latest state.
+            setGoals(prevGoals => (prevGoals || []).filter(g => g.goal_id !== goalId));
+        }
     }
   }
 

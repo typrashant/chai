@@ -161,12 +161,6 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({ expenses, mon
                     <div className="needs-wants-summary">
                         {monthlyExpenses > 0 && (
                             <>
-                                <AnalyticsBar segments={[
-                                    { label: 'Earnings', value: monthlyIncome, color: 'var(--green)' },
-                                    { label: 'Expenses', value: monthlyExpenses, color: 'var(--amber)' },
-                                    { label: 'Savings', value: Math.max(0, monthlySavings), color: '#60a5fa' },
-                                ]} />
-
                                 <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 600, textAlign: 'center' }}>Top Expense Categories</h3>
                                 <div className="chart-with-legend">
                                     <DonutChart data={expenseBreakdown}>
