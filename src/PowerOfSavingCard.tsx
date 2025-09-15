@@ -89,14 +89,14 @@ const PowerOfSavingCard = () => {
                     <div className="saving-chart-legend">
                         <div className="legend-item">
                             <div className="legend-info">
-                                <span className="legend-color" style={{ backgroundColor: '#FBBF24' }}></span>
+                                <span className="legend-color" style={{ backgroundColor: 'var(--amber)' }}></span>
                                 <span>Invested</span>
                             </div>
                             <strong>{formatCurrency(totalInvested)}</strong>
                         </div>
                         <div className="legend-item">
                             <div className="legend-info">
-                                <span className="legend-color" style={{ backgroundColor: '#4ade80' }}></span>
+                                <span className="legend-color" style={{ backgroundColor: 'var(--green)' }}></span>
                                 <span>Gains</span>
                             </div>
                             <strong>{formatCurrency(totalGains)}</strong>

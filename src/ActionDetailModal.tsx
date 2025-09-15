@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { CloseIcon } from './icons.tsx';
+import React, { useState } from 'react';
+import { CloseIcon, CalendarIcon } from './icons.tsx';
 
 const actionDetails: { [key: string]: any } = {
     'savingsRatio': {
@@ -50,7 +50,7 @@ const actionDetails: { [key: string]: any } = {
     },
     'retirement': {
         title: 'Accelerate Retirement Savings',
-        topProducts: ['NPS / Pension Plans', 'Public Provident Fund (PPF)', 'Equity Linked Savings Scheme (ELSS - for tax saving & growth)'],
+        topProducts: ['NPS (National Pension System)', 'Pension Plans (from insurers)', 'Annuity Plans'],
         howMuch: 'Aim to save at least 15% of your income specifically for retirement. If you get a salary hike, allocate at least 50% of the increment towards your retirement SIPs.'
     },
     'asset-allocation-persona-aggressive': {
@@ -76,9 +76,25 @@ const actionDetails: { [key: string]: any } = {
 };
 
 
-const ActionDetailModal = ({ actionKey, onClose }: { actionKey: string; onClose: () => void; }) => {
+const ActionDetailModal = ({ actionKey, onClose, onStartAction }: { actionKey: string; onClose: () => void; onStartAction: (actionKey: string, targetDate: string) => void; }) => {
     const details = actionDetails[actionKey];
+    const [targetDate, setTargetDate] = useState('');
+
     if (!details) return null;
+
+    const getMinDate = () => {
+        const today = new Date();
+        today.setDate(today.getDate() + 1); // Minimum date is tomorrow
+        return today.toISOString().split('T')[0];
+    }
+    
+    const handleStart = () => {
+        if (targetDate) {
+            onStartAction(actionKey, targetDate);
+        } else {
+            alert("Please select a target date.");
+        }
+    }
 
     return (
         <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -99,6 +115,24 @@ const ActionDetailModal = ({ actionKey, onClose }: { actionKey: string; onClose:
                      <div className="modal-section">
                         <h3>How much to start with</h3>
                         <p>{details.howMuch}</p>
+                    </div>
+                </div>
+                <div className="modal-footer">
+                    <div className="start-action-section">
+                        <h3><CalendarIcon /> Set a Target Date</h3>
+                        <p>Commit to a date to start this action and earn 100 locked points!</p>
+                        <div className="date-input-group">
+                             <input 
+                                type="date" 
+                                value={targetDate}
+                                onChange={(e) => setTargetDate(e.target.value)}
+                                min={getMinDate()}
+                                required
+                            />
+                            <button className="auth-button" onClick={handleStart} disabled={!targetDate}>
+                                Start & Get 100 ✨
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

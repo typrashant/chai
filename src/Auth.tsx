@@ -9,7 +9,7 @@ interface AuthProps {
 
 // Logo and Icons can remain as they are, purely presentational.
 const Logo = () => (
-    <svg className="logo-svg" width="50" height="50" viewBox="0 0 50 50" aria-label="Chai app logo, a steaming cutting chai glass">
+    <svg className="logo-svg" width="50" height="50" viewBox="0 0 50 50" aria-label="ChAi app logo, a steaming cutting chai glass">
         <defs>
             <linearGradient id="glassShine" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" className="shine-start" />

@@ -1,11 +1,15 @@
+
 import React, { useState, useMemo } from 'react';
-import { type UserProfile } from './db.ts';
+import { type UserProfile, type UserAction } from './db.ts';
 import { WarningIcon } from './icons.tsx';
 import ActionDetailModal from './ActionDetailModal.tsx';
 
 interface MyPlanProps {
     metrics: any;
     user: UserProfile;
+    userActions: UserAction[] | null;
+    onStartAction: (actionKey: string, targetDate: string) => void;
+    onCompleteAction: (actionId: string) => void;
 }
 
 const ActionCard = ({ title, description, severity, icon, onStart }: { title: string; description: string; severity: 'high' | 'medium'; icon: React.ReactNode; onStart: () => void; }) => (
@@ -26,8 +30,28 @@ const ActionCard = ({ title, description, severity, icon, onStart }: { title: st
     </div>
 );
 
+const ActionCardInProgress = ({ title, targetDate, onComplete }: { title: string; targetDate: string; onComplete: () => void; }) => {
+    const formattedDate = new Date(targetDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+    return (
+        <div className="action-card in-progress">
+            <div className="action-card-main-content">
+                 <div className="action-card-icon severity-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <div className="action-card-content">
+                    <h3>{title}</h3>
+                    <p>Target Date: <strong>{formattedDate}</strong></p>
+                </div>
+            </div>
+            <div className="action-card-buttons">
+                <button className="action-button-primary" onClick={onComplete}>Mark as Complete</button>
+            </div>
+        </div>
+    );
+};
 
-const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
+
+const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, onStartAction, onCompleteAction }) => {
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
     const age = useMemo(() => {
@@ -48,69 +72,7 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
     
     const { persona } = user;
     const { healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage } = metrics;
-    const actionList: {key: string; priority: number}[] = [];
-
-    // Prioritization Logic
-    // 1. Financial Health (Reds)
-    Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => {
-        if (ratio.status === 'red') {
-            actionList.push({ key, priority: 1 });
-        }
-    });
-
-    // 2. Financial Health (Ambers)
-    Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => {
-        if (ratio.status === 'amber') {
-            actionList.push({ key, priority: 2 });
-        }
-    });
-
-    // 3. Financial Protection (Reds)
-    Object.entries(protectionScores).forEach(([key, score]: [string, any]) => {
-        if (score.status === 'red') {
-            actionList.push({ key: `protection-${key}`, priority: 3 });
-        }
-    });
-
-    // 4. Financial Goals (Reds)
-    Object.entries(goalCoverageRatios).forEach(([key, ratio]: [string, any]) => {
-        if (ratio.status === 'red') {
-            actionList.push({ key: `goals-${key}`, priority: 4 });
-        }
-    });
     
-    // 5. Retirement Readiness (Red or Amber)
-    if (retirementReadiness.status !== 'green') {
-        actionList.push({ key: 'retirement', priority: 5 });
-    }
-
-    // 6. Asset Allocation Anomalies
-    const lowRiskPersonas = ['Guardian', 'Spender'];
-    const highRiskPersonas = ['Adventurer', 'Accumulator'];
-    const recommendedEquityByAge = Math.max(0, 110 - (age || 30)); 
-
-    let allocationAnomalyDetected = false;
-    if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) {
-        actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 });
-        allocationAnomalyDetected = true;
-    } else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) {
-        actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 });
-        allocationAnomalyDetected = true;
-    }
-
-    if (!allocationAnomalyDetected && age) {
-        if (equityAllocationPercentage > recommendedEquityByAge + 15) {
-            actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
-        } else if (equityAllocationPercentage < recommendedEquityByAge - 15) {
-            actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
-        }
-    }
-
-    const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values());
-    uniqueActions.sort((a, b) => a.priority - b.priority);
-    
-    const actionKeys = uniqueActions.map(a => a.key);
-
     const actionMap: { [key: string]: Omit<React.ComponentProps<typeof ActionCard>, 'onStart'> } = {
       'savingsRatio': { severity: "high", icon: <WarningIcon />, title: "Boost Your Savings Ratio", description: `Your savings ratio is ${healthRatios.savingsRatio.value.toFixed(0)}%, which is below the recommended 20%. Review your expenses or explore ways to increase your income to save more each month.` },
       'liquidityRatio': { severity: "high", icon: <WarningIcon />, title: "Build Your Emergency Fund", description: `You have ${healthRatios.liquidityRatio.value.toFixed(1)} months of expenses saved. Aim for at least 3-6 months in an easily accessible account to cover unexpected events.` },
@@ -130,48 +92,91 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
       'asset-allocation-age-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio Risk", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is high for your age. While growth is important, consider rebalancing to protect your gains.` },
       'asset-allocation-age-conservative': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio for Growth", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is conservative for your age. You have a long time horizon to benefit from market growth.` },
     };
+
+    const { actionKeys, inProgressActions, todoActionKeys } = useMemo(() => {
+        const actionList: {key: string; priority: number}[] = [];
+        if (healthRatios) {
+            Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'red') actionList.push({ key, priority: 1 }); });
+            Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'amber') actionList.push({ key, priority: 2 }); });
+        }
+        if (protectionScores) Object.entries(protectionScores).forEach(([key, score]: [string, any]) => { if (score.status === 'red') actionList.push({ key: `protection-${key}`, priority: 3 }); });
+        if (goalCoverageRatios) Object.entries(goalCoverageRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'red') actionList.push({ key: `goals-${key}`, priority: 4 }); });
+        if (retirementReadiness && retirementReadiness.status !== 'green') actionList.push({ key: 'retirement', priority: 5 });
+        
+        const lowRiskPersonas = ['Guardian', 'Spender'], highRiskPersonas = ['Adventurer', 'Accumulator'];
+        const recommendedEquityByAge = Math.max(0, 110 - (age || 30));
+        let allocationAnomalyDetected = false;
+        if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) { actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 }); allocationAnomalyDetected = true; }
+        else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) { actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 }); allocationAnomalyDetected = true; }
+        if (!allocationAnomalyDetected && age) {
+            if (equityAllocationPercentage > recommendedEquityByAge + 15) actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
+            else if (equityAllocationPercentage < recommendedEquityByAge - 15) actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
+        }
+
+        const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values()).sort((a, b) => a.priority - b.priority);
+        const allActionKeys = uniqueActions.map(a => a.key);
+        
+        const currentInProgress = userActions?.filter(a => a.status === 'in_progress') || [];
+        const inProgressKeys = new Set(currentInProgress.map(a => a.action_key));
+        const todoKeys = allActionKeys.filter(key => !inProgressKeys.has(key));
+
+        return { actionKeys: allActionKeys, inProgressActions: currentInProgress, todoActionKeys: todoKeys };
+    }, [metrics, user, userActions]);
+
+    const handleStartAndCloseModal = (actionKey: string, targetDate: string) => {
+        onStartAction(actionKey, targetDate);
+        setSelectedAction(null);
+    }
     
     const actionCategorization: { [key: string]: { level: 1 | 2 | 3 } } = {
-        'savingsRatio': { level: 1 },
-        'liquidityRatio': { level: 1 },
-        'debtToIncomeRatio': { level: 1 },
-        'protection-health': { level: 1 },
-        'goals-short': { level: 1 },
-        'leverageRatio': { level: 2 },
-        'protection-life': { level: 2 },
-        'goals-medium': { level: 2 },
-        'asset-allocation-persona-aggressive': { level: 2 },
-        'asset-allocation-persona-conservative': { level: 2 },
-        'asset-allocation-age-aggressive': { level: 2 },
-        'asset-allocation-age-conservative': { level: 2 },
-        'financialAssetRatio': { level: 3 },
-        'wealthRatio': { level: 3 },
-        'goals-overall': { level: 3 },
-        'goals-long': { level: 3 },
-        'retirement': { level: 3 },
+        'savingsRatio': { level: 1 }, 'liquidityRatio': { level: 1 }, 'debtToIncomeRatio': { level: 1 }, 'protection-health': { level: 1 }, 'goals-short': { level: 1 },
+        'leverageRatio': { level: 2 }, 'protection-life': { level: 2 }, 'goals-medium': { level: 2 }, 'asset-allocation-persona-aggressive': { level: 2 }, 'asset-allocation-persona-conservative': { level: 2 }, 'asset-allocation-age-aggressive': { level: 2 }, 'asset-allocation-age-conservative': { level: 2 },
+        'financialAssetRatio': { level: 3 }, 'wealthRatio': { level: 3 }, 'goals-overall': { level: 3 }, 'goals-long': { level: 3 }, 'retirement': { level: 3 },
     };
 
-    const categorizedActions = {
+    const categorizedTodoActions = {
         1: { title: "Level 1: Quick Wins", description: "Tackle these foundational tasks first to build a solid financial base.", icon: "🚀", actions: [] as { key: string; props: any }[] },
         2: { title: "Level 2: The Strategist", description: "Focus on medium-term planning to align your strategy and protect your assets.", icon: "🎯", actions: [] as { key: string; props: any }[] },
         3: { title: "Level 3: Boss Mode", description: "Optimize your portfolio and accelerate your journey to long-term wealth.", icon: "👑", actions: [] as { key: string; props: any }[] },
     };
 
-    actionKeys.forEach(key => {
+    todoActionKeys.forEach(key => {
         const categoryInfo = actionCategorization[key];
         const actionProps = actionMap[key];
         if (categoryInfo && actionProps) {
-            categorizedActions[categoryInfo.level].actions.push({ key, props: actionProps });
+            categorizedTodoActions[categoryInfo.level].actions.push({ key, props: actionProps });
         } else if (actionProps) {
-            categorizedActions[2].actions.push({ key, props: actionProps }); // Fallback
+            categorizedTodoActions[2].actions.push({ key, props: actionProps }); // Fallback
         }
     });
 
     return (
         <div className="my-plan-container">
             <h1>My Moves</h1>
-            {actionKeys.length > 0 ? (
-                Object.values(categorizedActions).map(category => (
+            {inProgressActions.length > 0 && (
+                <div className="plan-level-category">
+                    <div className="plan-level-header">
+                        <span className="plan-level-icon">⏳</span>
+                        <div className="plan-level-title-group">
+                            <h2>In Progress</h2>
+                            <p>Great job starting! Keep the momentum going.</p>
+                        </div>
+                    </div>
+                    <div className="plan-level-actions">
+                        {inProgressActions.map(action => (
+                            <ActionCardInProgress
+                                key={action.action_id}
+                                title={actionMap[action.action_key]?.title || 'Action'}
+                                targetDate={action.target_date}
+                                onComplete={() => onCompleteAction(action.action_id)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+            
+            {todoActionKeys.length > 0 && (
+                 Object.values(categorizedTodoActions).map(category => (
                     category.actions.length > 0 && (
                         <div key={category.title} className="plan-level-category">
                             <div className="plan-level-header">
@@ -196,14 +201,16 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
                         </div>
                     )
                 ))
-            ) : (
+            )}
+
+            {actionKeys.length === 0 && (
                 <div className="action-card no-actions-card">
                     <div className="emoji">🎉</div>
                     <h3>All Clear!</h3>
                     <p>Your financial health is looking great. Keep up the good work and continue tracking your progress.</p>
                 </div>
             )}
-            {selectedAction && <ActionDetailModal actionKey={selectedAction} onClose={() => setSelectedAction(null)} />}
+            {selectedAction && <ActionDetailModal actionKey={selectedAction} onClose={() => setSelectedAction(null)} onStartAction={handleStartAndCloseModal} />}
         </div>
     );
 };

@@ -1,3 +1,4 @@
+
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -106,12 +107,13 @@ export interface Database {
           dependents: number | null;
           persona: string | null;
           points: number;
+          locked_points: number;
           points_source: Json; // JSONB column
           created_at: string;
           updated_at: string;
         };
         Insert: { // The data shape needed to insert a new row.
-          user_id: string; // FIX: Restored user_id as it's required for inserts.
+          user_id: string;
           client_id: string;
           name: string;
           phone_number: string;
@@ -121,6 +123,7 @@ export interface Database {
           dependents?: number | null;
           persona?: string | null;
           points?: number;
+          locked_points?: number;
           points_source?: Json;
         };
         Update: { // The data shape needed to update a row.
@@ -131,6 +134,7 @@ export interface Database {
           dependents?: number | null;
           persona?: string | null;
           points?: number;
+          locked_points?: number;
           points_source?: Json;
           updated_at?: string;
         };
@@ -192,6 +196,37 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "goals_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "app_users";
+            referencedColumns: ["user_id"];
+          }
+        ];
+      };
+      user_actions: {
+        Row: {
+          action_id: string;
+          user_id: string;
+          action_key: string;
+          status: 'in_progress' | 'completed';
+          target_date: string;
+          started_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          action_id?: string;
+          user_id: string;
+          action_key: string;
+          target_date: string;
+          status?: 'in_progress';
+        };
+        Update: {
+          status?: 'completed';
+          completed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_actions_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "app_users";

@@ -21,6 +21,7 @@ import {
     type Assets,
     type Insurance,
     type FinancialItem,
+    type UserAction,
     getLatestFinancialSnapshot,
     getUserGoals,
     createFinancialSnapshot,
@@ -29,6 +30,9 @@ import {
     removeUserGoal,
     updateUserPersonaAndAwardPoints,
     getUserProfile,
+    getUserActions,
+    startUserAction,
+    completeUserAction,
 } from './db.ts';
 
 const APP_VERSION = '1.0.1';
@@ -178,6 +182,7 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [financials, setFinancials] = useState<Financials | null>(null);
   const [goals, setGoals] = useState<Goal[] | null>(null);
+  const [userActions, setUserActions] = useState<UserAction[] | null>(null);
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNetWorthOpen, setIsNetWorthOpen] = useState(false);
@@ -216,12 +221,14 @@ const App = () => {
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
-    const [fetchedFinancials, fetchedGoals] = await Promise.all([
+    const [fetchedFinancials, fetchedGoals, fetchedActions] = await Promise.all([
         getLatestFinancialSnapshot(profile.user_id),
-        getUserGoals(profile.user_id)
+        getUserGoals(profile.user_id),
+        getUserActions(profile.user_id),
     ]);
     setFinancials(fetchedFinancials || initialFinancials);
     setGoals(fetchedGoals || []);
+    setUserActions(fetchedActions || []);
     setIsLoading(false);
   };
   
@@ -308,12 +315,33 @@ const App = () => {
     }
   }
 
+  const handleStartAction = async (actionKey: string, targetDate: string) => {
+    if (!currentUser) return;
+    const updatedUser = await startUserAction(currentUser.user_id, actionKey, targetDate, currentUser);
+    if (updatedUser) {
+        setCurrentUser(updatedUser);
+        const actions = await getUserActions(currentUser.user_id);
+        setUserActions(actions);
+    }
+  };
+
+  const handleCompleteAction = async (actionId: string) => {
+      if (!currentUser) return;
+      const updatedUser = await completeUserAction(currentUser.user_id, actionId, currentUser);
+      if (updatedUser) {
+          setCurrentUser(updatedUser);
+          const actions = await getUserActions(currentUser.user_id);
+          setUserActions(actions);
+      }
+  };
+
   const handleLogout = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
     setCurrentUser(null);
     setFinancials(null);
     setGoals(null);
+    setUserActions(null);
     setIsProfileOpen(false);
   };
 
@@ -342,7 +370,10 @@ const App = () => {
       <header className="header">
         <Logo />
         <div className="header-actions">
-            <div className="points-display">✨ {currentUser.points}</div>
+            <div className="points-display">
+                ✨ {currentUser.points}
+                {(currentUser.locked_points || 0) > 0 && <span className="locked-points"> (+{currentUser.locked_points} 🔒)</span>}
+            </div>
             <button className="profile-button" onClick={() => setIsProfileOpen(!isProfileOpen)}><ProfileIcon /></button>
         </div>
         {isProfileOpen && (
@@ -398,7 +429,13 @@ const App = () => {
 
             </div>
         ) : (
-            <MyPlan metrics={metrics} user={currentUser} />
+            <MyPlan
+                metrics={metrics}
+                user={currentUser}
+                userActions={userActions}
+                onStartAction={handleStartAction}
+                onCompleteAction={handleCompleteAction}
+            />
         )}
       </main>
       

@@ -1,9 +1,11 @@
+
 // This file now acts as the data access layer for our Supabase backend.
 import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
 export type Goal = Database['public']['Tables']['goals']['Row'];
+export type UserAction = Database['public']['Tables']['user_actions']['Row'];
 
 // The Financials-related interfaces are now imported from the schema definition file.
 // We re-export them here so that component files don't need to change their import source.
@@ -75,6 +77,7 @@ export const createNewUserProfile = async (
             dependents,
             profession,
             points: 70, // Award initial points for completing sign-up
+            locked_points: 0,
             points_source: { demographics: true }, // Mark the source of points
         }])
         .select()
@@ -291,3 +294,82 @@ export const removeUserGoal = async (goal_id: string): Promise<boolean> => {
     }
     return true;
 }
+
+// --- User Action / Rewards Functions ---
+
+export const getUserActions = async (user_id: string): Promise<UserAction[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+        .from('user_actions')
+        .select('*')
+        .eq('user_id', user_id);
+    
+    if (error) {
+        console.error('Error fetching user actions:', error);
+        return [];
+    }
+    return data || [];
+};
+
+export const startUserAction = async (user_id: string, action_key: string, target_date: string, currentUser: UserProfile): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    
+    const { error: actionError } = await supabase.from('user_actions').insert({
+        user_id,
+        action_key,
+        target_date,
+    });
+    
+    if (actionError) {
+        console.error('Error starting user action:', actionError);
+        return null;
+    }
+    
+    const newLockedPoints = (currentUser.locked_points || 0) + 100;
+    const { data: updatedUser, error: userError } = await supabase
+        .from('app_users')
+        .update({ locked_points: newLockedPoints })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+        
+    if (userError) {
+        console.error('Error updating locked points:', userError);
+        // Attempt to roll back action creation? For now, we'll just log.
+        return null;
+    }
+    
+    return updatedUser;
+};
+
+export const completeUserAction = async (user_id: string, action_id: string, currentUser: UserProfile): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+
+    const { error: actionError } = await supabase
+        .from('user_actions')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('action_id', action_id)
+        .eq('user_id', user_id);
+
+    if (actionError) {
+        console.error('Error completing user action:', actionError);
+        return null;
+    }
+
+    const newLockedPoints = Math.max(0, (currentUser.locked_points || 0) - 100);
+    const newPoints = currentUser.points + 100;
+
+    const { data: updatedUser, error: userError } = await supabase
+        .from('app_users')
+        .update({ points: newPoints, locked_points: newLockedPoints })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+    
+    if (userError) {
+        console.error('Error unlocking points:', userError);
+        return null;
+    }
+    
+    return updatedUser;
+};
