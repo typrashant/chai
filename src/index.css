@@ -250,16 +250,6 @@ main {
     grid-column: span 2 / span 2;
 }
 
-@media (max-width: 768px) {
-  .card.col-span-2 {
-    grid-column: span 1 / span 1;
-  }
-  .goals-card-content {
-    grid-template-columns: 1fr;
-  }
-}
-
-
 .card h2 {
     font-size: 1.2rem;
     font-weight: 600;
@@ -1189,7 +1179,6 @@ main {
 
 .goals-card-content {
     display: grid;
-    /* This is the key change to give the form more space */
     grid-template-columns: 2fr 1.5fr;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
@@ -1224,7 +1213,6 @@ main {
     background-color: var(--border-color);
     border-radius: 3px;
 }
-/* Restoring the better button style from the old version */
 .timeline-age {
     flex: 0 0 50px;
     height: 50px;
@@ -1745,4 +1733,13 @@ main {
 .nav-item svg {
     width: 20px;
     height: 20px;
+}
+
+@media (max-width: 768px) {
+  .card.col-span-2 {
+    grid-column: span 1 / span 1;
+  }
+  .goals-card-content {
+    grid-template-columns: 1fr;
+  }
 }
