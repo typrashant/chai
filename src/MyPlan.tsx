@@ -130,22 +130,72 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user }) => {
       'asset-allocation-age-aggressive': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio Risk", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is high for your age. While growth is important, consider rebalancing to protect your gains.` },
       'asset-allocation-age-conservative': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio for Growth", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is conservative for your age. You have a long time horizon to benefit from market growth.` },
     };
+    
+    const actionCategorization: { [key: string]: { level: 1 | 2 | 3 } } = {
+        'savingsRatio': { level: 1 },
+        'liquidityRatio': { level: 1 },
+        'debtToIncomeRatio': { level: 1 },
+        'protection-health': { level: 1 },
+        'goals-short': { level: 1 },
+        'leverageRatio': { level: 2 },
+        'protection-life': { level: 2 },
+        'goals-medium': { level: 2 },
+        'asset-allocation-persona-aggressive': { level: 2 },
+        'asset-allocation-persona-conservative': { level: 2 },
+        'asset-allocation-age-aggressive': { level: 2 },
+        'asset-allocation-age-conservative': { level: 2 },
+        'financialAssetRatio': { level: 3 },
+        'wealthRatio': { level: 3 },
+        'goals-overall': { level: 3 },
+        'goals-long': { level: 3 },
+        'retirement': { level: 3 },
+    };
+
+    const categorizedActions = {
+        1: { title: "Level 1: Quick Wins", description: "Tackle these foundational tasks first to build a solid financial base.", icon: "🚀", actions: [] as { key: string; props: any }[] },
+        2: { title: "Level 2: The Strategist", description: "Focus on medium-term planning to align your strategy and protect your assets.", icon: "🎯", actions: [] as { key: string; props: any }[] },
+        3: { title: "Level 3: Boss Mode", description: "Optimize your portfolio and accelerate your journey to long-term wealth.", icon: "👑", actions: [] as { key: string; props: any }[] },
+    };
+
+    actionKeys.forEach(key => {
+        const categoryInfo = actionCategorization[key];
+        const actionProps = actionMap[key];
+        if (categoryInfo && actionProps) {
+            categorizedActions[categoryInfo.level].actions.push({ key, props: actionProps });
+        } else if (actionProps) {
+            categorizedActions[2].actions.push({ key, props: actionProps }); // Fallback
+        }
+    });
 
     return (
         <div className="my-plan-container">
             <h1>My Moves</h1>
             {actionKeys.length > 0 ? (
-                actionKeys.map(key => {
-                    const actionProps = actionMap[key];
-                    if (!actionProps) return null;
-                    return (
-                        <ActionCard
-                            key={key}
-                            {...actionProps}
-                            onStart={() => setSelectedAction(key)}
-                        />
-                    );
-                })
+                Object.values(categorizedActions).map(category => (
+                    category.actions.length > 0 && (
+                        <div key={category.title} className="plan-level-category">
+                            <div className="plan-level-header">
+                               <span className="plan-level-icon">{category.icon}</span>
+                               <div className="plan-level-title-group">
+                                  <h2>{category.title}</h2>
+                                  <p>{category.description}</p>
+                               </div>
+                            </div>
+                            <div className="plan-level-actions">
+                              {category.actions.map(({ key, props }) => (
+                                  <ActionCard
+                                      key={key}
+                                      title={props.title}
+                                      description={props.description}
+                                      severity={props.severity}
+                                      icon={props.icon}
+                                      onStart={() => setSelectedAction(key)}
+                                  />
+                              ))}
+                            </div>
+                        </div>
+                    )
+                ))
             ) : (
                 <div className="action-card no-actions-card">
                     <div className="emoji">🎉</div>

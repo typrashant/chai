@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
@@ -237,11 +238,11 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   return (
     <div className="container auth-container">
       <Logo />
-      <h1 className="auth-title">Chai - Smart finance, made simple.</h1>
+      <h1 className="auth-title">ChAi - Smart finance, made simple.</h1>
       <div className="auth-form">
         {step < 3 && (
           <>
-            <h2>Welcome to Chai!</h2>
+            <h2>Welcome to ChAi!</h2>
             <p>{authMode === 'signup' ? 'Create an account to get started.' : 'Sign in to access your dashboard.'}</p>
             <div className="auth-toggle">
               <button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); resetForm(); }}>Sign Up</button>

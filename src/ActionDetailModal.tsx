@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CloseIcon } from './icons.tsx';
 
@@ -49,7 +50,7 @@ const actionDetails: { [key: string]: any } = {
     },
     'retirement': {
         title: 'Accelerate Retirement Savings',
-        topProducts: ['National Pension System (NPS)', 'Public Provident Fund (PPF)', 'Equity Linked Savings Scheme (ELSS - for tax saving & growth)'],
+        topProducts: ['NPS / Pension Plans', 'Public Provident Fund (PPF)', 'Equity Linked Savings Scheme (ELSS - for tax saving & growth)'],
         howMuch: 'Aim to save at least 15% of your income specifically for retirement. If you get a salary hike, allocate at least 50% of the increment towards your retirement SIPs.'
     },
     'asset-allocation-persona-aggressive': {
