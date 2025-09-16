@@ -72,12 +72,16 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
 
         const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
         const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        // FIX: Cast `item` to `FinancialItem` to allow safe access to its properties.
         const monthlyIncome = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
         const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
+        
+        const totalMonthlyIncome_MonthlyItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+        const totalAnnualIncome_AnnualItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
+        const totalMonthlyExpenses_MonthlyItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+        const totalAnnualExpenses_AnnualItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
+
         const monthlySavings = monthlyIncome - monthlyExpenses;
         const netWorth = totalAssets - totalLiabilities;
-        // FIX: Changed type from string[] to (keyof Assets)[] for type-safe access to asset properties.
         const investableAssetKeys: (keyof Assets)[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
         
         const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key] || 0), 0);
@@ -131,15 +135,16 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
             if (ratio >= 75) status = 'green'; else if (ratio >= 40) status = 'amber';
             return { ratio, status };
         };
+        const totalGoalValue = goals.reduce((s, g) => s + Number(g.target_value), 0);
         const goalCoverageRatios = {
-            overall: { ...calculateRatio(financialAssets, goals.reduce((s, g) => s + Number(g.target_value), 0)), label: 'Overall' },
+            overall: { ...calculateRatio(financialAssets, totalGoalValue), label: 'Overall' },
             short: { ...calculateRatio(assetsByTerm.short, goalsByTerm.short.value), label: 'Short-Term' },
             medium: { ...calculateRatio(assetsByTerm.medium, goalsByTerm.medium.value), label: 'Medium-Term' },
             long: { ...calculateRatio(assetsByTerm.long, goalsByTerm.long.value), label: 'Long-Term' },
         };
 
-        const retirementTarget = (100 - age) * (monthlyExpenses * 12);
-        const retirementAssets = Number(assets.stocks || 0) + Number(assets.mutualFunds || 0) + Number(assets.crypto || 0) + Number(assets.nps || 0) + Number(assets.ppf || 0) + Number(assets.pf || 0) + Number(assets.sukanyaSamriddhi || 0);
+        const retirementTarget = (85 - age) * ((monthlyExpenses * 12) * 0.7);
+        const retirementAssets = Math.max(0, financialAssets + Number(assets.otherProperty || 0) - totalGoalValue);
         const retirementReadiness = {
             readinessPercentage: Math.min(retirementTarget > 0 ? (retirementAssets / retirementTarget) * 100 : 100, 100),
             investableAssets: retirementAssets, retirementTarget,
@@ -148,8 +153,31 @@ const useFinancialMetrics = (financials: Financials | null, user: UserProfile | 
 
         const equityAssets = Number(assets.stocks || 0) + Number(assets.mutualFunds || 0) + Number(assets.crypto || 0);
         const equityAllocationPercentage = financialAssets > 0 ? (equityAssets / financialAssets) * 100 : 0;
+        
+        const metrics = { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage, monthlyIncome, monthlyExpenses, monthlySavings, totalMonthlyIncome_MonthlyItems, totalAnnualIncome_AnnualItems, totalMonthlyExpenses_MonthlyItems, totalAnnualExpenses_AnnualItems };
+        
+        const actionList: {key: string; priority: number}[] = [];
+        Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key, priority: 1 }); });
+        Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'amber') actionList.push({ key, priority: 2 }); });
+        if (protectionScores) Object.entries(protectionScores).forEach(([key, score]) => { if (score.status === 'red') actionList.push({ key: `protection-${key}`, priority: 3 }); });
+        if (goalCoverageRatios) Object.entries(goalCoverageRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key: `goals-${key}`, priority: 4 }); });
+        if (retirementReadiness && retirementReadiness.status !== 'green') actionList.push({ key: 'retirement', priority: 5 });
+        
+        const { persona } = user;
+        const lowRiskPersonas = ['Guardian', 'Spender'], highRiskPersonas = ['Adventurer', 'Accumulator'];
+        const recommendedEquityByAge = Math.max(0, 110 - age);
+        let allocationAnomalyDetected = false;
+        if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) { actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 }); allocationAnomalyDetected = true; }
+        else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) { actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 }); allocationAnomalyDetected = true; }
+        if (!allocationAnomalyDetected) {
+            if (equityAllocationPercentage > recommendedEquityByAge + 15) actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
+            else if (equityAllocationPercentage < recommendedEquityByAge - 15) actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
+        }
 
-        return { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage, monthlyIncome, monthlyExpenses, monthlySavings };
+        const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values()).sort((a, b) => a.priority - b.priority);
+        const triggeredActionKeys = uniqueActions.map(a => a.key);
+
+        return { metrics, triggeredActionKeys };
     }, [financials, user, goals]);
 }
 
@@ -299,7 +327,6 @@ const App = () => {
     if(currentUser) {
         const newGoal = await addUserGoal(currentUser.user_id, goal);
         if(newGoal) {
-            // Using functional update to prevent stale state issues, ensuring the new goal is always added to the latest goal list.
             setGoals(prevGoals => [...(prevGoals || []), newGoal]);
         }
     }
@@ -309,7 +336,6 @@ const App = () => {
     if(currentUser) {
         const success = await removeUserGoal(goalId);
         if(success) {
-            // Using functional update to ensure a goal is removed from the latest state.
             setGoals(prevGoals => (prevGoals || []).filter(g => g.goal_id !== goalId));
         }
     }
@@ -326,7 +352,17 @@ const App = () => {
   };
 
   const handleCompleteAction = async (actionId: string) => {
-      if (!currentUser) return;
+      if (!currentUser || !userActions || !metricsData?.triggeredActionKeys) return;
+
+      const actionToComplete = userActions.find(a => a.action_id === actionId);
+      if (!actionToComplete) return;
+
+      // Validation check: an action is considered "complete" if the condition that triggered it is no longer true.
+      if (metricsData.triggeredActionKeys.includes(actionToComplete.action_key)) {
+          alert("Looks like the condition for this action hasn't been met yet. Please update your financial details if you've made progress, and try again.");
+          return;
+      }
+
       const updatedUser = await completeUserAction(currentUser.user_id, actionId, currentUser);
       if (updatedUser) {
           setCurrentUser(updatedUser);
@@ -345,7 +381,10 @@ const App = () => {
     setIsProfileOpen(false);
   };
 
-  const metrics = useFinancialMetrics(financials, currentUser, goals);
+  const metricsData = useFinancialMetrics(financials, currentUser, goals);
+  const metrics = metricsData?.metrics;
+  const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
+
 
   if (!isSupabaseConfigured) {
       return <SupabaseConfigError />;
@@ -409,6 +448,10 @@ const App = () => {
                         monthlyIncome={metrics.monthlyIncome}
                         monthlyExpenses={metrics.monthlyExpenses}
                         monthlySavings={metrics.monthlySavings}
+                        totalMonthlyIncome_MonthlyItems={metrics.totalMonthlyIncome_MonthlyItems}
+                        totalAnnualIncome_AnnualItems={metrics.totalAnnualIncome_AnnualItems}
+                        totalMonthlyExpenses_MonthlyItems={metrics.totalMonthlyExpenses_MonthlyItems}
+                        totalAnnualExpenses_AnnualItems={metrics.totalAnnualExpenses_AnnualItems}
                         onToggle={() => setIsMonthlyFinancesOpen(true)}
                         isCompleted={hasCompleted('monthlyFinances')}
                         potentialPoints={REWARD_POINTS.monthlyFinances}
@@ -433,6 +476,7 @@ const App = () => {
                 metrics={metrics}
                 user={currentUser}
                 userActions={userActions}
+                triggeredActionKeys={triggeredActionKeys}
                 onStartAction={handleStartAction}
                 onCompleteAction={handleCompleteAction}
             />

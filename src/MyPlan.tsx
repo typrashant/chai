@@ -8,6 +8,7 @@ interface MyPlanProps {
     metrics: any;
     user: UserProfile;
     userActions: UserAction[] | null;
+    triggeredActionKeys: string[];
     onStartAction: (actionKey: string, targetDate: string) => void;
     onCompleteAction: (actionId: string) => void;
 }
@@ -51,13 +52,8 @@ const ActionCardInProgress = ({ title, targetDate, onComplete }: { title: string
 };
 
 
-const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, onStartAction, onCompleteAction }) => {
+const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, triggeredActionKeys, onStartAction, onCompleteAction }) => {
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
-
-    const age = useMemo(() => {
-        if (!user.age) return undefined;
-        return user.age;
-    }, [user.age]);
 
     if (!metrics) {
         return (
@@ -93,35 +89,13 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, onStartActi
       'asset-allocation-age-conservative': { severity: "medium", icon: <WarningIcon />, title: "Review Your Portfolio for Growth", description: `Your equity exposure is ${equityAllocationPercentage.toFixed(0)}%, which is conservative for your age. You have a long time horizon to benefit from market growth.` },
     };
 
-    const { actionKeys, inProgressActions, todoActionKeys } = useMemo(() => {
-        const actionList: {key: string; priority: number}[] = [];
-        if (healthRatios) {
-            Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'red') actionList.push({ key, priority: 1 }); });
-            Object.entries(healthRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'amber') actionList.push({ key, priority: 2 }); });
-        }
-        if (protectionScores) Object.entries(protectionScores).forEach(([key, score]: [string, any]) => { if (score.status === 'red') actionList.push({ key: `protection-${key}`, priority: 3 }); });
-        if (goalCoverageRatios) Object.entries(goalCoverageRatios).forEach(([key, ratio]: [string, any]) => { if (ratio.status === 'red') actionList.push({ key: `goals-${key}`, priority: 4 }); });
-        if (retirementReadiness && retirementReadiness.status !== 'green') actionList.push({ key: 'retirement', priority: 5 });
-        
-        const lowRiskPersonas = ['Guardian', 'Spender'], highRiskPersonas = ['Adventurer', 'Accumulator'];
-        const recommendedEquityByAge = Math.max(0, 110 - (age || 30));
-        let allocationAnomalyDetected = false;
-        if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) { actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 }); allocationAnomalyDetected = true; }
-        else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) { actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 }); allocationAnomalyDetected = true; }
-        if (!allocationAnomalyDetected && age) {
-            if (equityAllocationPercentage > recommendedEquityByAge + 15) actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
-            else if (equityAllocationPercentage < recommendedEquityByAge - 15) actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
-        }
-
-        const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values()).sort((a, b) => a.priority - b.priority);
-        const allActionKeys = uniqueActions.map(a => a.key);
-        
+    const { inProgressActions, todoActionKeys } = useMemo(() => {
         const currentInProgress = userActions?.filter(a => a.status === 'in_progress') || [];
         const inProgressKeys = new Set(currentInProgress.map(a => a.action_key));
-        const todoKeys = allActionKeys.filter(key => !inProgressKeys.has(key));
+        const todoKeys = triggeredActionKeys.filter(key => !inProgressKeys.has(key));
 
-        return { actionKeys: allActionKeys, inProgressActions: currentInProgress, todoActionKeys: todoKeys };
-    }, [metrics, user, userActions]);
+        return { inProgressActions: currentInProgress, todoActionKeys: todoKeys };
+    }, [triggeredActionKeys, userActions]);
 
     const handleStartAndCloseModal = (actionKey: string, targetDate: string) => {
         onStartAction(actionKey, targetDate);
@@ -203,7 +177,7 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, onStartActi
                 ))
             )}
 
-            {actionKeys.length === 0 && (
+            {triggeredActionKeys.length === 0 && inProgressActions.length === 0 && (
                 <div className="action-card no-actions-card">
                     <div className="emoji">🎉</div>
                     <h3>All Clear!</h3>

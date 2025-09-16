@@ -3,7 +3,8 @@ import { type Expenses, type FinancialItem } from './db.ts';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
-const DonutChart = ({ data, children }: { data: any[], children: React.ReactNode }) => {
+// FIX: Made the `children` prop optional to resolve a TypeScript error where it was not being correctly inferred.
+const DonutChart = ({ data, children }: { data: any[], children?: React.ReactNode }) => {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
     let accumulatedPercentage = 0;
@@ -64,6 +65,10 @@ interface MonthlyCashflowCardProps {
   monthlyIncome: number;
   monthlyExpenses: number;
   monthlySavings: number;
+  totalMonthlyIncome_MonthlyItems: number;
+  totalAnnualIncome_AnnualItems: number;
+  totalMonthlyExpenses_MonthlyItems: number;
+  totalAnnualExpenses_AnnualItems: number;
   onToggle: () => void;
   isCompleted: boolean;
   potentialPoints: number;
@@ -72,7 +77,19 @@ interface MonthlyCashflowCardProps {
 const needsKeys: (keyof Expenses)[] = ['rent', 'emi', 'utilities', 'societyMaintenance', 'propertyTax', 'groceries', 'transport', 'health', 'education', 'insurancePremiums'];
 const wantsKeys: (keyof Expenses)[] = ['clothing', 'diningOut', 'entertainment', 'subscriptions', 'vacation', 'other'];
 
-const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({ expenses, monthlyIncome, monthlyExpenses, monthlySavings, onToggle, isCompleted, potentialPoints }) => {
+const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({ 
+    expenses, 
+    monthlyIncome, 
+    monthlyExpenses, 
+    monthlySavings, 
+    totalMonthlyIncome_MonthlyItems,
+    totalAnnualIncome_AnnualItems,
+    totalMonthlyExpenses_MonthlyItems,
+    totalAnnualExpenses_AnnualItems,
+    onToggle, 
+    isCompleted, 
+    potentialPoints 
+}) => {
     const [viewMode, setViewMode] = useState<'monthly' | 'annually'>('monthly');
 
     const { needs, wants } = useMemo(() => {
@@ -121,7 +138,20 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({ expenses, mon
         return { expenseBreakdown: breakdown, savingsRatio: calculatedSavingsRatio };
     }, [expenses, monthlyIncome, monthlyExpenses, monthlySavings]);
 
-    const multiplier = viewMode === 'monthly' ? 1 : 12;
+    const { displayedIncome, displayedExpenses, displayedSavings } = useMemo(() => {
+        let income = 0;
+        let expenses = 0;
+        if (viewMode === 'monthly') {
+            income = totalMonthlyIncome_MonthlyItems;
+            expenses = totalMonthlyExpenses_MonthlyItems;
+        } else { // annually
+            income = (totalMonthlyIncome_MonthlyItems * 12) + totalAnnualIncome_AnnualItems;
+            expenses = (totalMonthlyExpenses_MonthlyItems * 12) + totalAnnualExpenses_AnnualItems;
+        }
+        const savings = income - expenses;
+        return { displayedIncome: income, displayedExpenses: expenses, displayedSavings: savings };
+    }, [viewMode, totalMonthlyIncome_MonthlyItems, totalAnnualIncome_AnnualItems, totalMonthlyExpenses_MonthlyItems, totalAnnualExpenses_AnnualItems]);
+
 
     return (
         <div className="card summary-card">
@@ -146,15 +176,15 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({ expenses, mon
                     <div className="cashflow-absolute-summary" style={{margin: '1rem 0'}}>
                         <div className="summary-item">
                             <span>Income</span>
-                            <strong>{formatCurrency(monthlyIncome * multiplier)}</strong>
+                            <strong>{formatCurrency(displayedIncome)}</strong>
                         </div>
                         <div className="summary-item">
                             <span>Expenses</span>
-                            <strong>{formatCurrency(monthlyExpenses * multiplier)}</strong>
+                            <strong>{formatCurrency(displayedExpenses)}</strong>
                         </div>
                          <div className="summary-item">
                             <span>Savings</span>
-                            <strong>{formatCurrency(monthlySavings * multiplier)}</strong>
+                            <strong>{formatCurrency(displayedSavings)}</strong>
                         </div>
                     </div>
                     

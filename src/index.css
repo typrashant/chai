@@ -501,6 +501,15 @@ main {
     color: var(--text-color);
 }
 
+.clickable-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.clickable-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+
 
 .potential-points {
     background: rgba(245, 158, 11, 0.1);
@@ -1745,6 +1754,100 @@ main {
 .nav-item:hover:not(.active) {
     background-color: var(--border-color);
 }
+
+/* Net Worth Timeline Page */
+.networth-timeline-page {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    background-color: var(--background-color);
+    min-height: 100vh;
+}
+.timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.back-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color-light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.back-button:hover {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+.timeline-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.timeline-chart-container {
+    width: 100%;
+    overflow-x: auto; /* Allow horizontal scrolling on small screens */
+}
+
+.grid-line, .axis-line {
+    stroke: var(--border-color);
+    stroke-width: 1;
+}
+.axis-label {
+    font-size: 12px;
+    fill: var(--text-color-light);
+    font-family: 'Poppins', sans-serif;
+}
+.x-axis-title {
+    font-size: 14px;
+    font-weight: 600;
+    fill: var(--text-color);
+}
+.benchmark-line {
+    stroke: var(--primary-color);
+    stroke-width: 2.5;
+}
+.user-networth-point {
+    fill: var(--green);
+    stroke: var(--background-color);
+    stroke-width: 2;
+}
+.timeline-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    font-size: 0.8rem;
+}
+.timeline-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0;
+}
+.timeline-legend .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+.timeline-legend .user-point {
+    background-color: var(--green);
+    border-radius: 50%;
+}
+.timeline-legend .benchmark-point {
+    height: 3px;
+    background-color: var(--primary-color);
+}
+
 
 /* Media Queries */
 @media (max-width: 768px) {

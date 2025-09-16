@@ -129,8 +129,8 @@ const ActionDetailModal = ({ actionKey, onClose, onStartAction }: { actionKey: s
                                 min={getMinDate()}
                                 required
                             />
-                            <button className="auth-button" onClick={handleStart} disabled={!targetDate}>
-                                Start & Get 100 ✨
+                            <button className="action-button-primary" onClick={handleStart} disabled={!targetDate}>
+                                Commit
                             </button>
                         </div>
                     </div>
