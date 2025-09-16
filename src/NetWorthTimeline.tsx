@@ -54,27 +54,58 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
     // SVG dimensions and padding
     const width = 800;
     const height = 400;
-    const padding = { top: 20, right: 30, bottom: 50, left: 60 };
+    const padding = { top: 20, right: 30, bottom: 50, left: 70 };
+
+    const { yAxisTicks, effectiveMaxY } = useMemo(() => {
+        if (maxYValue <= 0) {
+            const defaultMax = 5000000; // 50 Lakhs
+            const defaultInterval = 1000000; // 10 Lakhs
+            const ticks = [];
+            for (let i = 0; i <= defaultMax; i += defaultInterval) {
+                ticks.push(i);
+            }
+            return { yAxisTicks: ticks, effectiveMaxY: defaultMax };
+        }
+
+        const desiredTickCount = 5;
+        const roughInterval = maxYValue / desiredTickCount;
+        
+        const tenLakh = 1000000;
+        const interval = Math.max(tenLakh, Math.ceil(roughInterval / tenLakh) * tenLakh);
+        
+        const newMaxY = Math.ceil(maxYValue / interval) * interval;
+
+        const ticks = [];
+        for (let i = 0; i <= newMaxY; i += interval) {
+            ticks.push(i);
+        }
+
+        return { yAxisTicks: ticks.length > 1 ? ticks : [0, interval], effectiveMaxY: newMaxY > 0 ? newMaxY : interval };
+    }, [maxYValue]);
+
+    const xAxisTicks = useMemo(() => {
+        const ticks = [];
+        const interval = 5;
+        const firstTick = Math.ceil(startAge / interval) * interval;
+        for (let ageVal = firstTick; ageVal <= endAge; ageVal += interval) {
+            ticks.push(ageVal);
+        }
+        return ticks;
+    }, [startAge, endAge]);
+
 
     const xScale = (ageVal: number) => {
         return padding.left + ((ageVal - startAge) / (endAge - startAge)) * (width - padding.left - padding.right);
     };
 
     const yScale = (netWorthVal: number) => {
-        if (maxYValue === 0) return height - padding.bottom;
-        return height - padding.bottom - (netWorthVal / maxYValue) * (height - padding.top - padding.bottom);
+        if (effectiveMaxY === 0) return height - padding.bottom;
+        return height - padding.bottom - (netWorthVal / effectiveMaxY) * (height - padding.top - padding.bottom);
     };
     
-    const yAxisTicks = useMemo(() => {
-        if (maxYValue <= 0) return [];
-        const tickCount = 5;
-        const interval = maxYValue / tickCount;
-        return Array.from({ length: tickCount + 1 }, (_, i) => i * interval);
-    }, [maxYValue]);
-
     const benchmarkPath = useMemo(() => {
         return benchmarkPoints.map(p => `${xScale(p.age)},${yScale(p.value)}`).join(' ');
-    }, [benchmarkPoints]);
+    }, [benchmarkPoints, xScale, yScale]);
 
     return (
         <div className="networth-timeline-page">
@@ -97,7 +128,7 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
                                 y2={yScale(tick)}
                                 className="grid-line"
                             />
-                            <text x={padding.left - 10} y={yScale(tick)} className="axis-label y-axis-label" textAnchor="end" alignmentBaseline="middle">
+                            <text x={padding.left - 15} y={yScale(tick)} className="axis-label y-axis-label" textAnchor="end" alignmentBaseline="middle">
                                 {formatInLakhs(tick)}
                             </text>
                         </g>
@@ -105,7 +136,12 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
 
                     {/* X-axis and labels */}
                     <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} className="axis-line" />
-                    <text x={width / 2} y={height - 10} className="axis-label x-axis-title" textAnchor="middle">Age</text>
+                    {xAxisTicks.map((tick, i) => (
+                         <text key={i} x={xScale(tick)} y={height - padding.bottom + 25} className="axis-label x-axis-label" textAnchor="middle">
+                            {tick}
+                        </text>
+                    ))}
+                    <text x={width / 2} y={height - 5} className="axis-label x-axis-title" textAnchor="middle">Age</text>
                     
                     {/* Benchmark line */}
                     <polyline
@@ -135,7 +171,7 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
                 </div>
                 <div className="legend-item">
                     <span className="legend-color benchmark-point"></span>
-                    <span>Recommended Net Worth</span>
+                    <span>Benchmark for your income & age</span>
                 </div>
             </div>
         </div>

@@ -405,9 +405,13 @@ const App = () => {
   }
   
   const hasCompleted = (source: keyof typeof REWARD_POINTS) => !!(currentUser.points_source as any)?.[source];
-  
+
   if (activeView === 'networth' && currentUser && metrics) {
-    return <NetWorthTimeline user={currentUser} metrics={metrics} onBack={() => setActiveView('dashboard')} />;
+    return (
+      <div className="container">
+        <NetWorthTimeline user={currentUser} metrics={metrics} onBack={() => setActiveView('dashboard')} />
+      </div>
+    );
   }
 
   return (
