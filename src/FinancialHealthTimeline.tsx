@@ -38,7 +38,7 @@ interface RatioTimelineChartProps {
 const RatioTimelineChart: React.FC<RatioTimelineChartProps> = ({ title, description, suffix, data, benchmarks }) => {
     const width = 300;
     const height = 150;
-    const padding = { top: 10, right: 20, bottom: 30, left: 30 };
+    const padding = { top: 10, right: 20, bottom: 30, left: 45 };
 
     const { minX, maxX, minY, maxY } = useMemo(() => {
         if (data.length === 0) return { minX: 20, maxX: 60, minY: 0, maxY: 100 };
@@ -56,6 +56,17 @@ const RatioTimelineChart: React.FC<RatioTimelineChartProps> = ({ title, descript
             maxY: dataMaxY + range * 0.2, // and above
         };
     }, [data, benchmarks]);
+
+    const yAxisTicks = useMemo(() => {
+        const tickCount = 3;
+        if (maxY <= minY) return [maxY];
+        const ticks = [];
+        const interval = (maxY - minY) / (tickCount - 1);
+        for (let i = 0; i < tickCount; i++) {
+            ticks.push(minY + i * interval);
+        }
+        return ticks;
+    }, [minY, maxY]);
     
     if (data.length < 2) {
         return (
@@ -70,7 +81,10 @@ const RatioTimelineChart: React.FC<RatioTimelineChartProps> = ({ title, descript
     }
 
     const xScale = (age: number) => padding.left + ((age - minX) / (maxX - minX)) * (width - padding.left - padding.right);
-    const yScale = (value: number) => height - padding.bottom - ((value - minY) / (maxY - minY)) * (height - padding.top - padding.bottom);
+    const yScale = (value: number) => {
+        if (maxY === minY) return height / 2;
+        return height - padding.bottom - ((value - minY) / (maxY - minY)) * (height - padding.top - padding.bottom);
+    }
     
     const linePath = data.map(d => `${xScale(d.age)},${yScale(d.value)}`).join(' ');
 
@@ -111,7 +125,27 @@ const RatioTimelineChart: React.FC<RatioTimelineChartProps> = ({ title, descript
             <h3>{title}</h3>
             <p>{description}: <strong style={{color: 'var(--text-color)'}}>{lastValue}{suffix}</strong></p>
             <div className="ratio-chart-container">
-                <svg className="ratio-chart-svg" width="100%" viewBox={`0 0 ${width} ${height}`}>
+                <svg className="ratio-chart-svg" width="100%" viewBox={`0 0 ${width} ${height}`} aria-label={`Chart of ${title} over time`}>
+                    {/* Y-Axis Grid Lines and Labels */}
+                    {yAxisTicks.map((tick, i) => (
+                        <g key={i} className="y-axis-tick">
+                            <line 
+                                className="grid-line"
+                                x1={padding.left} y1={yScale(tick)} 
+                                x2={width - padding.right} y2={yScale(tick)} 
+                                strokeDasharray={i > 0 && i < yAxisTicks.length - 1 ? '2,3' : 'none'}
+                            />
+                            <text 
+                                className="axis-label"
+                                x={padding.left - 8} y={yScale(tick)} 
+                                textAnchor="end" 
+                                alignmentBaseline="middle"
+                            >
+                                {tick.toFixed(title.includes('Liquidity') ? 1 : 0)}
+                            </text>
+                        </g>
+                    ))}
+
                     <rect x={padding.left} y={redZone.y} width={width - padding.left - padding.right} height={redZone.height} className="benchmark-zone-red" />
                     <rect x={padding.left} y={amberZone.y} width={width - padding.left - padding.right} height={amberZone.height} className="benchmark-zone-amber" />
                     <rect x={padding.left} y={greenZone.y} width={width - padding.left - padding.right} height={greenZone.height} className="benchmark-zone-green" />
