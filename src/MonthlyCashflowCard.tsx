@@ -91,53 +91,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
     potentialPoints 
 }) => {
     const [viewMode, setViewMode] = useState<'monthly' | 'annually'>('monthly');
-
-    const { needs, wants } = useMemo(() => {
-        const calculateTotal = (keys: (keyof Expenses)[]) => {
-            return keys.reduce((sum, key) => {
-                const item = expenses[key] as FinancialItem;
-                if (!item) return sum;
-                return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
-            }, 0);
-        };
-        return {
-            needs: calculateTotal(needsKeys),
-            wants: calculateTotal(wantsKeys),
-        };
-    }, [expenses]);
     
-     const { expenseBreakdown, savingsRatio } = useMemo(() => {
-        if (monthlyExpenses <= 0) {
-            return { expenseBreakdown: [], savingsRatio: 0 };
-        }
-
-        const colors = ['#38BDF8', '#A78BFA', '#F472B6', '#4ADE80', '#FDE047', '#FB923C', '#2DD4BF', '#F43F5E'];
-        let colorIndex = 0;
-
-        const expenseItems = Object.entries(expenses).map(([key, item]) => {
-            const financialItem = item as FinancialItem;
-            if (!financialItem) return { label: key, value: 0 };
-            const monthlyValue = financialItem.frequency === 'monthly' ? financialItem.value : financialItem.value / 12;
-            return {
-                label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-                value: monthlyValue,
-            };
-        });
-
-        const breakdown = expenseItems
-            .filter(item => item.value > 0)
-            .map(item => ({
-                ...item,
-                percentage: (item.value / monthlyExpenses) * 100,
-                color: colors[colorIndex++ % colors.length],
-            }))
-            .sort((a, b) => b.value - a.value);
-
-        const calculatedSavingsRatio = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
-
-        return { expenseBreakdown: breakdown, savingsRatio: calculatedSavingsRatio };
-    }, [expenses, monthlyIncome, monthlyExpenses, monthlySavings]);
-
     const { displayedIncome, displayedExpenses, displayedSavings } = useMemo(() => {
         let income = 0;
         let expenses = 0;
@@ -151,6 +105,72 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
         const savings = income - expenses;
         return { displayedIncome: income, displayedExpenses: expenses, displayedSavings: savings };
     }, [viewMode, totalMonthlyIncome_MonthlyItems, totalAnnualIncome_AnnualItems, totalMonthlyExpenses_MonthlyItems, totalAnnualExpenses_AnnualItems]);
+
+
+    const { needs, wants } = useMemo(() => {
+        const calculateTotal = (keys: (keyof Expenses)[]) => {
+            return keys.reduce((sum, key) => {
+                const item = expenses[key] as FinancialItem;
+                if (!item || item.value <= 0) return sum;
+                
+                let valueForView = 0;
+                if (viewMode === 'monthly') {
+                    if (item.frequency === 'monthly') {
+                        valueForView = item.value;
+                    }
+                } else { // annually
+                    valueForView = item.frequency === 'monthly' ? item.value * 12 : item.value;
+                }
+                return sum + valueForView;
+            }, 0);
+        };
+        return {
+            needs: calculateTotal(needsKeys),
+            wants: calculateTotal(wantsKeys),
+        };
+    }, [expenses, viewMode]);
+    
+     const { expenseBreakdown, savingsRatio } = useMemo(() => {
+        if (displayedExpenses <= 0) {
+            return { expenseBreakdown: [], savingsRatio: 0 };
+        }
+
+        const colors = ['#38BDF8', '#A78BFA', '#F472B6', '#4ADE80', '#FDE047', '#FB923C', '#2DD4BF', '#F43F5E'];
+        let colorIndex = 0;
+
+        const expenseItems = Object.entries(expenses).map(([key, item]) => {
+            const financialItem = item as FinancialItem;
+            if (!financialItem || financialItem.value <= 0) return null;
+
+            let valueForView = 0;
+            if (viewMode === 'monthly') {
+                if (financialItem.frequency === 'monthly') {
+                    valueForView = financialItem.value;
+                }
+            } else { // annually
+                valueForView = financialItem.frequency === 'monthly' ? financialItem.value * 12 : financialItem.value;
+            }
+
+            if (valueForView <= 0) return null;
+
+            return {
+                label: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+                value: valueForView,
+            };
+        }).filter((item): item is { label: string; value: number; } => item !== null);
+
+        const breakdown = expenseItems
+            .map(item => ({
+                ...item,
+                percentage: (item.value / displayedExpenses) * 100,
+                color: colors[colorIndex++ % colors.length],
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        const calculatedSavingsRatio = displayedIncome > 0 ? (displayedSavings / displayedIncome) * 100 : 0;
+
+        return { expenseBreakdown: breakdown, savingsRatio: calculatedSavingsRatio };
+    }, [viewMode, expenses, displayedIncome, displayedExpenses, displayedSavings]);
 
 
     return (
@@ -189,7 +209,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
                     </div>
                     
                     <div className="needs-wants-summary">
-                        {monthlyExpenses > 0 && (
+                        {displayedExpenses > 0 && (
                             <>
                                 <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: 600, textAlign: 'center' }}>Top Expense Categories</h3>
                                 <div className="chart-with-legend">
