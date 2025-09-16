@@ -1,5 +1,4 @@
 
-
 :root {
   /* New Dark Mode Palette */
   --primary-color: #F59E0B; /* amber-500 */
@@ -1825,10 +1824,20 @@ main {
     stroke: var(--primary-color);
     stroke-width: 2.5;
 }
-.user-networth-point {
-    fill: var(--green);
-    stroke: var(--background-color);
+.user-progress-line {
+    stroke: var(--green);
     stroke-width: 2;
+    fill: none;
+}
+.user-progress-point {
+    fill: var(--green);
+    stroke: var(--card-background);
+    stroke-width: 1.5;
+    transition: r 0.2s ease;
+    cursor: pointer;
+}
+.user-progress-point:hover {
+    r: 8;
 }
 .timeline-legend {
     display: flex;

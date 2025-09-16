@@ -6,6 +6,7 @@ import { supabase, type Database, type Financials, type Json } from './SupabaseC
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
 export type Goal = Database['public']['Tables']['goals']['Row'];
 export type UserAction = Database['public']['Tables']['user_actions']['Row'];
+export type FinancialSnapshot = Database['public']['Tables']['financial_snapshots']['Row'];
 
 // The Financials-related interfaces are now imported from the schema definition file.
 // We re-export them here so that component files don't need to change their import source.
@@ -139,6 +140,21 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
     
     return null;
 }
+
+export const getFinancialHistory = async (user_id: string): Promise<FinancialSnapshot[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+        .from('financial_snapshots')
+        .select('*')
+        .eq('user_id', user_id)
+        .order('snapshot_date', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching financial history:', error);
+        return [];
+    }
+    return data || [];
+};
 
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;

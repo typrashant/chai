@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -25,7 +23,9 @@ import {
     type Insurance,
     type FinancialItem,
     type UserAction,
+    type FinancialSnapshot,
     getLatestFinancialSnapshot,
+    getFinancialHistory,
     getUserGoals,
     createFinancialSnapshot,
     awardPoints,
@@ -212,6 +212,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [financials, setFinancials] = useState<Financials | null>(null);
+  const [financialHistory, setFinancialHistory] = useState<FinancialSnapshot[] | null>(null);
   const [goals, setGoals] = useState<Goal[] | null>(null);
   const [userActions, setUserActions] = useState<UserAction[] | null>(null);
   
@@ -253,12 +254,14 @@ const App = () => {
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
-    const [fetchedFinancials, fetchedGoals, fetchedActions] = await Promise.all([
+    const [fetchedFinancials, fetchedHistory, fetchedGoals, fetchedActions] = await Promise.all([
         getLatestFinancialSnapshot(profile.user_id),
+        getFinancialHistory(profile.user_id),
         getUserGoals(profile.user_id),
         getUserActions(profile.user_id),
     ]);
     setFinancials(fetchedFinancials || initialFinancials);
+    setFinancialHistory(fetchedHistory || []);
     setGoals(fetchedGoals || []);
     setUserActions(fetchedActions || []);
     setIsLoading(false);
@@ -295,6 +298,14 @@ const App = () => {
         const success = await createFinancialSnapshot(currentUser.user_id, financials);
         if (!success) return; // Stop if saving failed
 
+        // Refetch data to get the latest snapshot and history
+        const [newLatest, newHistory] = await Promise.all([
+            getLatestFinancialSnapshot(currentUser.user_id),
+            getFinancialHistory(currentUser.user_id)
+        ]);
+        setFinancials(newLatest || initialFinancials);
+        setFinancialHistory(newHistory || []);
+
         if (source === 'netWorth') {
             await handleAwardPoints('netWorth', buttonElement, REWARD_POINTS.netWorth);
             setIsNetWorthOpen(false);
@@ -314,6 +325,12 @@ const App = () => {
         if (currentUser && financials) {
             const success = await createFinancialSnapshot(currentUser.user_id, financials);
             if (success) {
+                 const [newLatest, newHistory] = await Promise.all([
+                    getLatestFinancialSnapshot(currentUser.user_id),
+                    getFinancialHistory(currentUser.user_id)
+                ]);
+                setFinancials(newLatest || initialFinancials);
+                setFinancialHistory(newHistory || []);
                 await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
             }
         }
@@ -380,6 +397,7 @@ const App = () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
     setFinancials(null);
+    setFinancialHistory(null);
     setGoals(null);
     setUserActions(null);
     setIsProfileOpen(false);
@@ -435,8 +453,8 @@ const App = () => {
       <main>
         {activeView === 'dashboard' && financials && goals && metrics && (
              <>
-                {isNetWorthTimelineOpen && currentUser && metrics ? (
-                    <NetWorthTimeline user={currentUser} metrics={metrics} onBack={() => setIsNetWorthTimelineOpen(false)} />
+                {isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
+                    <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
                 ) : (
                     <div className="dashboard-grid">
                         {isNetWorthOpen ? (
