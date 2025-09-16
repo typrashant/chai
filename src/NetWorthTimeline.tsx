@@ -108,13 +108,25 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
     }, [benchmarkPoints, xScale, yScale]);
 
     return (
-        <div className="networth-timeline-page">
-            <header className="timeline-header">
-                <button className="back-button" onClick={onBack} aria-label="Go back to dashboard">
-                    &lt;
-                </button>
-                <h2>Net Worth Timeline</h2>
-            </header>
+        <div className="card networth-timeline-view">
+            <div className="timeline-header-container">
+                <header className="timeline-header">
+                    <button className="back-button" onClick={onBack} aria-label="Go back to dashboard">
+                        &lt;
+                    </button>
+                    <h2>Net Worth Timeline</h2>
+                </header>
+                <div className="timeline-legend">
+                    <div className="legend-item">
+                        <span className="legend-color user-point"></span>
+                        <span>Your Net Worth</span>
+                    </div>
+                    <div className="legend-item">
+                        <span className="legend-color benchmark-point"></span>
+                        <span>Benchmark for your income & age</span>
+                    </div>
+                </div>
+            </div>
             <div className="timeline-chart-container">
                 <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="figure" aria-label="Net worth timeline chart">
                     <title>Chart of your net worth compared to a benchmark over time</title>
@@ -163,16 +175,6 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, onBa
                          </circle>
                     )}
                 </svg>
-            </div>
-            <div className="timeline-legend">
-                <div className="legend-item">
-                    <span className="legend-color user-point"></span>
-                    <span>Your Net Worth</span>
-                </div>
-                <div className="legend-item">
-                    <span className="legend-color benchmark-point"></span>
-                    <span>Benchmark for your income & age</span>
-                </div>
             </div>
         </div>
     );

@@ -238,7 +238,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   return (
     <div className="container auth-container">
       <Logo />
-      <h1 className="auth-title">ChAi - Smart finance, made simple.</h1>
+      <h1 className="auth-title">Smart finance, made simple.</h1>
       <div className="auth-form">
         {step < 3 && (
           <>

@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -216,11 +217,12 @@ const App = () => {
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNetWorthOpen, setIsNetWorthOpen] = useState(false);
+  const [isNetWorthTimelineOpen, setIsNetWorthTimelineOpen] = useState(false);
   const [isMonthlyFinancesOpen, setIsMonthlyFinancesOpen] = useState(false);
   const [isProtectionOpen, setIsProtectionOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'plan' | 'networth'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
   useEffect(() => {
     if (!supabase) {
@@ -406,14 +408,6 @@ const App = () => {
   
   const hasCompleted = (source: keyof typeof REWARD_POINTS) => !!(currentUser.points_source as any)?.[source];
 
-  if (activeView === 'networth' && currentUser && metrics) {
-    return (
-      <div className="container">
-        <NetWorthTimeline user={currentUser} metrics={metrics} onBack={() => setActiveView('dashboard')} />
-      </div>
-    );
-  }
-
   return (
     <div className="container">
       <header className="header">
@@ -440,61 +434,67 @@ const App = () => {
 
       <main>
         {activeView === 'dashboard' && financials && goals && metrics && (
-             <div className="dashboard-grid">
-                {isNetWorthOpen ? (
-                    <NetWorthCalculator data={{ assets: financials.assets, liabilities: financials.liabilities }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('netWorth', e.currentTarget)} />
+             <>
+                {isNetWorthTimelineOpen && currentUser && metrics ? (
+                    <NetWorthTimeline user={currentUser} metrics={metrics} onBack={() => setIsNetWorthTimelineOpen(false)} />
                 ) : (
-                    <div
-                        className={`card summary-card ${hasCompleted('netWorth') ? 'clickable-card' : ''}`}
-                        role="button"
-                        tabIndex={hasCompleted('netWorth') ? 0 : -1}
-                        onClick={() => hasCompleted('netWorth') && setActiveView('networth')}
-                        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && hasCompleted('netWorth')) setActiveView('networth'); }}
-                    >
-                        <div className="summary-card-header">
-                            <div className="summary-card-title-group">
-                                <h2>Net Worth</h2>
-                                {!hasCompleted('netWorth') && <div className="potential-points">✨ {REWARD_POINTS.netWorth} Points</div>}
+                    <div className="dashboard-grid">
+                        {isNetWorthOpen ? (
+                            <NetWorthCalculator data={{ assets: financials.assets, liabilities: financials.liabilities }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('netWorth', e.currentTarget)} />
+                        ) : (
+                            <div
+                                className={`card summary-card ${hasCompleted('netWorth') ? 'clickable-card' : ''}`}
+                                role="button"
+                                tabIndex={hasCompleted('netWorth') ? 0 : -1}
+                                onClick={() => hasCompleted('netWorth') && setIsNetWorthTimelineOpen(true)}
+                                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && hasCompleted('netWorth')) setIsNetWorthTimelineOpen(true); }}
+                            >
+                                <div className="summary-card-header">
+                                    <div className="summary-card-title-group">
+                                        <h2>Net Worth</h2>
+                                        {!hasCompleted('netWorth') && <div className="potential-points">✨ {REWARD_POINTS.netWorth} Points</div>}
+                                    </div>
+                                    <button className="update-button" onClick={(e) => { e.stopPropagation(); setIsNetWorthOpen(true); }}>
+                                        {hasCompleted('netWorth') ? 'Update' : 'Calculate'}
+                                    </button>
+                                </div>
+                                {hasCompleted('netWorth') ? <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p> : <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>}
                             </div>
-                            <button className="update-button" onClick={(e) => { e.stopPropagation(); setIsNetWorthOpen(true); }}>
-                                {hasCompleted('netWorth') ? 'Update' : 'Calculate'}
-                            </button>
-                        </div>
-                        {hasCompleted('netWorth') ? <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p> : <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>}
+                        )}
+                        
+                        {isMonthlyFinancesOpen ? (
+                            <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
+                        ) : (
+                            <MonthlyCashflowCard
+                                expenses={financials.expenses}
+                                monthlyIncome={metrics.monthlyIncome}
+                                monthlyExpenses={metrics.monthlyExpenses}
+                                monthlySavings={metrics.monthlySavings}
+                                totalMonthlyIncome_MonthlyItems={metrics.totalMonthlyIncome_MonthlyItems}
+                                totalAnnualIncome_AnnualItems={metrics.totalAnnualIncome_AnnualItems}
+                                totalMonthlyExpenses_MonthlyItems={metrics.totalMonthlyExpenses_MonthlyItems}
+                                totalAnnualExpenses_AnnualItems={metrics.totalAnnualExpenses_AnnualItems}
+                                onToggle={() => setIsMonthlyFinancesOpen(true)}
+                                isCompleted={hasCompleted('monthlyFinances')}
+                                potentialPoints={REWARD_POINTS.monthlyFinances}
+                            />
+                        )}
+                        
+                        <FinancialHealthCard ratios={metrics.healthRatios} />
+
+                        <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
+
+                        <PowerOfSavingCard />
+                        
+                        <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
+
+                        <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
+
+                        <InvestmentAllocation assets={financials.assets} />
+
                     </div>
                 )}
-                
-                {isMonthlyFinancesOpen ? (
-                    <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
-                ) : (
-                    <MonthlyCashflowCard
-                        expenses={financials.expenses}
-                        monthlyIncome={metrics.monthlyIncome}
-                        monthlyExpenses={metrics.monthlyExpenses}
-                        monthlySavings={metrics.monthlySavings}
-                        totalMonthlyIncome_MonthlyItems={metrics.totalMonthlyIncome_MonthlyItems}
-                        totalAnnualIncome_AnnualItems={metrics.totalAnnualIncome_AnnualItems}
-                        totalMonthlyExpenses_MonthlyItems={metrics.totalMonthlyExpenses_MonthlyItems}
-                        totalAnnualExpenses_AnnualItems={metrics.totalAnnualExpenses_AnnualItems}
-                        onToggle={() => setIsMonthlyFinancesOpen(true)}
-                        isCompleted={hasCompleted('monthlyFinances')}
-                        potentialPoints={REWARD_POINTS.monthlyFinances}
-                    />
-                )}
-                
-                <FinancialHealthCard ratios={metrics.healthRatios} />
-
-                <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
-
-                <PowerOfSavingCard />
-                
-                <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
-
-                <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
-
-                <InvestmentAllocation assets={financials.assets} />
-
-            </div>
+            </>
         )}
         {activeView === 'plan' && (
             <MyPlan
@@ -510,14 +510,12 @@ const App = () => {
       
       {pointsAnimation && <div key={pointsAnimation.key} className="points-toast" style={{ left: `${pointsAnimation.x}px`, top: `${pointsAnimation.y}px` }}>+ {pointsAnimation.amount} ✨</div>}
       
-      {activeView !== 'networth' && (
-        <nav className="bottom-nav">
-            <div className="bottom-nav-content">
-                <button className={`nav-item ${activeView === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveView('dashboard')}><HomeIcon /><span>Home</span></button>
-                <button className={`nav-item ${activeView === 'plan' ? 'active' : ''}`} onClick={() => setActiveView('plan')}><PlanIcon /><span>My Moves</span></button>
-            </div>
-        </nav>
-      )}
+      <nav className="bottom-nav">
+          <div className="bottom-nav-content">
+              <button className={`nav-item ${activeView === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveView('dashboard')}><HomeIcon /><span>Home</span></button>
+              <button className={`nav-item ${activeView === 'plan' ? 'active' : ''}`} onClick={() => setActiveView('plan')}><PlanIcon /><span>My Moves</span></button>
+          </div>
+      </nav>
     </div>
   );
 };
