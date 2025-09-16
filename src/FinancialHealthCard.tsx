@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 
 type RagStatus = 'green' | 'amber' | 'red' | 'neutral';
@@ -71,6 +73,8 @@ interface Ratios {
 
 interface FinancialHealthCardProps {
   ratios: Ratios;
+  isClickable?: boolean;
+  onClick?: () => void;
 }
 
 
@@ -83,9 +87,15 @@ const ratioDetails: { [K in keyof Ratios]: { name: string; description: string; 
     wealthRatio: { name: 'Wealth Ratio', description: 'Net worth as a % of annual income. Ideal: > 200%', suffix: '%' },
 };
 
-const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ ratios }) => {
+const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ ratios, isClickable, onClick }) => {
   return (
-    <div className="card financial-health-card">
+    <div 
+        className={`card financial-health-card ${isClickable ? 'clickable-card' : ''}`}
+        onClick={onClick}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : -1}
+        onKeyDown={(e) => { if (isClickable && (e.key === 'Enter' || e.key === ' ')) onClick?.(); }}
+    >
       <h2>Financial Health</h2>
       <div className="health-ratios-grid">
         {(Object.keys(ratios) as Array<keyof Ratios>).map((key) => {

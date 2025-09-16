@@ -1,4 +1,5 @@
 
+
 :root {
   /* New Dark Mode Palette */
   --primary-color: #F59E0B; /* amber-500 */
@@ -1865,6 +1866,60 @@ main {
 .timeline-legend .benchmark-point {
     height: 3px;
     background-color: var(--primary-color);
+}
+
+/* Financial Health Timeline */
+.financial-health-timeline-view {
+    display: flex;
+    flex-direction: column;
+}
+
+.financial-health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.ratio-timeline-card {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.ratio-timeline-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.ratio-timeline-card p {
+    font-size: 0.8rem;
+    color: var(--text-color-light);
+    margin-bottom: 1rem;
+}
+
+.ratio-chart-container {
+    flex-grow: 1;
+    min-height: 150px;
+}
+
+.ratio-chart-svg .benchmark-zone-red { fill: rgba(248, 113, 113, 0.1); }
+.ratio-chart-svg .benchmark-zone-amber { fill: rgba(250, 204, 21, 0.1); }
+.ratio-chart-svg .benchmark-zone-green { fill: rgba(74, 222, 128, 0.1); }
+
+.ratio-chart-svg .user-ratio-line {
+    stroke: var(--primary-color-light);
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.ratio-chart-svg .axis-label {
+    font-size: 0.75rem;
 }
 
 

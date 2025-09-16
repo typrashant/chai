@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -15,6 +16,7 @@ import MyPlan from './MyPlan.tsx';
 import { HomeIcon, PlanIcon } from './icons.tsx';
 import MonthlyCashflowCard from './MonthlyCashflowCard.tsx';
 import NetWorthTimeline from './NetWorthTimeline.tsx';
+import FinancialHealthTimeline from './FinancialHealthTimeline.tsx';
 import {
     type UserProfile,
     type Financials,
@@ -37,6 +39,21 @@ import {
     startUserAction,
     completeUserAction,
 } from './db.ts';
+
+type RagStatusHealth = 'green' | 'amber' | 'red';
+
+interface Ratio {
+    value: number;
+    status: RagStatusHealth;
+}
+interface Ratios {
+    savingsRatio: Ratio;
+    financialAssetRatio: Ratio;
+    liquidityRatio: Ratio;
+    leverageRatio: Ratio;
+    debtToIncomeRatio: Ratio;
+    wealthRatio: Ratio;
+}
 
 const APP_VERSION = '1.0.1';
 
@@ -65,122 +82,128 @@ const initialFinancials: Financials = {
     insurance: { life: 0, health: 0, car: 0, property: 0 },
 };
 
+// This function centralizes all financial calculations.
+const calculateAllFinancialMetrics = (financials: Financials, user: UserProfile, goals: Goal[]) => {
+    if (!user.age) return null;
+
+    const age = user.age;
+    const { assets, liabilities, income, expenses, insurance } = financials;
+
+    const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
+    const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
+    const monthlyIncome = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
+    const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
+    
+    const totalMonthlyIncome_MonthlyItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+    const totalAnnualIncome_AnnualItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
+    const totalMonthlyExpenses_MonthlyItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+    const totalAnnualExpenses_AnnualItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
+
+    const monthlySavings = monthlyIncome - monthlyExpenses;
+    const netWorth = totalAssets - totalLiabilities;
+    const investableAssetKeys: (keyof Assets)[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
+    
+    const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key] || 0), 0);
+    const liquidAssets = Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0);
+    const annualIncome = monthlyIncome * 12;
+    
+    type RagStatus = 'green' | 'amber' | 'red' | 'neutral';
+
+    const getRagStatus = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value >= green) return 'green'; if (value >= amber) return 'amber'; return 'red'; };
+    const getRagStatusReversed = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value <= green) return 'green'; if (value <= amber) return 'amber'; return 'red'; };
+    
+    const savingsRatio = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
+    const emi = expenses.emi;
+    const monthlyEmi = emi ? (emi.frequency === 'monthly' ? emi.value : emi.value / 12) : 0;
+    const debtToIncomeRatio = monthlyIncome > 0 ? (monthlyEmi / monthlyIncome) * 100 : 0;
+    
+    const healthRatios = {
+        savingsRatio: { value: savingsRatio, status: getRagStatus(savingsRatio, 20, 10) },
+        financialAssetRatio: { value: totalAssets > 0 ? (financialAssets / totalAssets) * 100 : 0, status: getRagStatus(totalAssets > 0 ? (financialAssets / totalAssets) * 100 : 0, 50, 25) },
+        liquidityRatio: { value: monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0, status: getRagStatus(monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0, 6, 3) },
+        leverageRatio: { value: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0, status: getRagStatusReversed(totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0, 30, 50) },
+        debtToIncomeRatio: { value: debtToIncomeRatio, status: getRagStatusReversed(debtToIncomeRatio, 36, 43) },
+        wealthRatio: { value: annualIncome > 0 ? (netWorth / annualIncome) * 100 : 0, status: getRagStatus(annualIncome > 0 ? (netWorth / annualIncome) * 100 : 0, 200, 100) },
+    };
+
+    const lifeTarget = annualIncome * 10;
+    const lifeScore = lifeTarget > 0 ? (insurance.life / lifeTarget) * 100 : (insurance.life > 0 ? 100 : 0);
+    const protectionScores = {
+        life: { score: lifeScore, status: getRagStatus(lifeScore, 90, 50) },
+        health: { score: (insurance.health / 1500000) * 100, status: getRagStatus((insurance.health / 1500000) * 100, 90, 50) },
+        car: { score: Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+        property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
+    };
+    
+    const goalsByTerm = { short: { value: 0 }, medium: { value: 0 }, long: { value: 0 } };
+    goals.forEach(goal => {
+        const yearsLeft = goal.target_age - age;
+        if (yearsLeft < 2) goalsByTerm.short.value += goal.target_value;
+        else if (yearsLeft <= 5) goalsByTerm.medium.value += goal.target_value;
+        else goalsByTerm.long.value += goal.target_value;
+    });
+    const assetsByTerm = {
+        short: Number(assets.crypto || 0) + Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0) + Number(assets.recurringDeposit || 0) + Number(assets.fixedDeposit || 0),
+        medium: Number(assets.mutualFunds || 0),
+        long: Number(assets.stocks || 0) + Number(assets.nps || 0) + Number(assets.ppf || 0) + Number(assets.pf || 0) + Number(assets.sukanyaSamriddhi || 0),
+    };
+    const calculateRatio = (assetValue: number, goalValue: number) => {
+        if (goalValue === 0) return { ratio: 0, status: 'neutral' as RagStatus };
+        const ratio = Math.min((assetValue / goalValue) * 100, 100);
+        let status: RagStatus = 'red';
+        if (ratio >= 75) status = 'green'; else if (ratio >= 40) status = 'amber';
+        return { ratio, status };
+    };
+    const totalGoalValue = goals.reduce((s, g) => s + Number(g.target_value), 0);
+    const goalCoverageRatios = {
+        overall: { ...calculateRatio(financialAssets, totalGoalValue), label: 'Overall' },
+        short: { ...calculateRatio(assetsByTerm.short, goalsByTerm.short.value), label: 'Short-Term' },
+        medium: { ...calculateRatio(assetsByTerm.medium, goalsByTerm.medium.value), label: 'Medium-Term' },
+        long: { ...calculateRatio(assetsByTerm.long, goalsByTerm.long.value), label: 'Long-Term' },
+    };
+
+    const retirementTarget = (85 - age) * ((monthlyExpenses * 12) * 0.7);
+    const retirementAssets = Math.max(0, financialAssets + Number(assets.otherProperty || 0) - totalGoalValue);
+    const retirementReadiness = {
+        readinessPercentage: Math.min(retirementTarget > 0 ? (retirementAssets / retirementTarget) * 100 : 100, 100),
+        investableAssets: retirementAssets, retirementTarget,
+        status: getRagStatus(retirementTarget > 0 ? (retirementAssets / retirementTarget) * 100 : 100, 40, 20),
+    };
+
+    const equityAssets = Number(assets.stocks || 0) + Number(assets.mutualFunds || 0) + Number(assets.crypto || 0);
+    const equityAllocationPercentage = financialAssets > 0 ? (equityAssets / financialAssets) * 100 : 0;
+    
+    const metrics = { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage, monthlyIncome, monthlyExpenses, monthlySavings, totalMonthlyIncome_MonthlyItems, totalAnnualIncome_AnnualItems, totalMonthlyExpenses_MonthlyItems, totalAnnualExpenses_AnnualItems };
+    
+    const actionList: {key: string; priority: number}[] = [];
+    Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key, priority: 1 }); });
+    Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'amber') actionList.push({ key, priority: 2 }); });
+    if (protectionScores) Object.entries(protectionScores).forEach(([key, score]) => { if (score.status === 'red') actionList.push({ key: `protection-${key}`, priority: 3 }); });
+    if (goalCoverageRatios) Object.entries(goalCoverageRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key: `goals-${key}`, priority: 4 }); });
+    if (retirementReadiness && retirementReadiness.status !== 'green') actionList.push({ key: 'retirement', priority: 5 });
+    
+    const { persona } = user;
+    const lowRiskPersonas = ['Guardian', 'Spender'], highRiskPersonas = ['Adventurer', 'Accumulator'];
+    const recommendedEquityByAge = Math.max(0, 110 - age);
+    let allocationAnomalyDetected = false;
+    if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) { actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 }); allocationAnomalyDetected = true; }
+    else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) { actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 }); allocationAnomalyDetected = true; }
+    if (!allocationAnomalyDetected) {
+        if (equityAllocationPercentage > recommendedEquityByAge + 15) actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
+        else if (equityAllocationPercentage < recommendedEquityByAge - 15) actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
+    }
+
+    const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values()).sort((a, b) => a.priority - b.priority);
+    const triggeredActionKeys = uniqueActions.map(a => a.key);
+
+    return { metrics, triggeredActionKeys };
+}
+
 // This custom hook centralizes all financial calculations.
 const useFinancialMetrics = (financials: Financials | null, user: UserProfile | null, goals: Goal[] | null) => {
     return useMemo(() => {
-        if (!user || !financials || !goals || !user.age) return null;
-
-        const age = user.age;
-        const { assets, liabilities, income, expenses, insurance } = financials;
-
-        const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
-        const monthlyIncome = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
-        const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
-        
-        const totalMonthlyIncome_MonthlyItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
-        const totalAnnualIncome_AnnualItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
-        const totalMonthlyExpenses_MonthlyItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
-        const totalAnnualExpenses_AnnualItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
-
-        const monthlySavings = monthlyIncome - monthlyExpenses;
-        const netWorth = totalAssets - totalLiabilities;
-        const investableAssetKeys: (keyof Assets)[] = ['stocks', 'mutualFunds', 'crypto', 'nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'];
-        
-        const financialAssets = investableAssetKeys.reduce((sum, key) => sum + Number(assets[key] || 0), 0);
-        const liquidAssets = Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0);
-        const annualIncome = monthlyIncome * 12;
-        
-        type RagStatus = 'green' | 'amber' | 'red' | 'neutral';
-
-        const getRagStatus = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value >= green) return 'green'; if (value >= amber) return 'amber'; return 'red'; };
-        const getRagStatusReversed = (value: number, green: number, amber: number): 'green' | 'amber' | 'red' => { if (value <= green) return 'green'; if (value <= amber) return 'amber'; return 'red'; };
-        
-        const savingsRatio = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
-        const emi = expenses.emi;
-        const monthlyEmi = emi ? (emi.frequency === 'monthly' ? emi.value : emi.value / 12) : 0;
-        const debtToIncomeRatio = monthlyIncome > 0 ? (monthlyEmi / monthlyIncome) * 100 : 0;
-        
-        const healthRatios = {
-            savingsRatio: { value: savingsRatio, status: getRagStatus(savingsRatio, 20, 10) },
-            financialAssetRatio: { value: totalAssets > 0 ? (financialAssets / totalAssets) * 100 : 0, status: getRagStatus(totalAssets > 0 ? (financialAssets / totalAssets) * 100 : 0, 50, 25) },
-            liquidityRatio: { value: monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0, status: getRagStatus(monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0, 6, 3) },
-            leverageRatio: { value: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0, status: getRagStatusReversed(totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0, 30, 50) },
-            debtToIncomeRatio: { value: debtToIncomeRatio, status: getRagStatusReversed(debtToIncomeRatio, 36, 43) },
-            wealthRatio: { value: annualIncome > 0 ? (netWorth / annualIncome) * 100 : 0, status: getRagStatus(annualIncome > 0 ? (netWorth / annualIncome) * 100 : 0, 200, 100) },
-        };
-
-        const lifeTarget = annualIncome * 10;
-        const lifeScore = lifeTarget > 0 ? (insurance.life / lifeTarget) * 100 : (insurance.life > 0 ? 100 : 0);
-        const protectionScores = {
-            life: { score: lifeScore, status: getRagStatus(lifeScore, 90, 50) },
-            health: { score: (insurance.health / 1500000) * 100, status: getRagStatus((insurance.health / 1500000) * 100, 90, 50) },
-            car: { score: Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, status: getRagStatus(Number(assets.car || 0) > 0 ? (insurance.car > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
-            property: { score: (Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, status: getRagStatus((Number(assets.house || 0) + Number(assets.otherProperty || 0)) > 0 ? (insurance.property > 0 ? 100 : 0) : 100, 99, 0) as 'green' | 'red' },
-        };
-        
-        const goalsByTerm = { short: { value: 0 }, medium: { value: 0 }, long: { value: 0 } };
-        goals.forEach(goal => {
-            const yearsLeft = goal.target_age - age;
-            if (yearsLeft < 2) goalsByTerm.short.value += goal.target_value;
-            else if (yearsLeft <= 5) goalsByTerm.medium.value += goal.target_value;
-            else goalsByTerm.long.value += goal.target_value;
-        });
-        const assetsByTerm = {
-            short: Number(assets.crypto || 0) + Number(assets.cashInHand || 0) + Number(assets.savingsAccount || 0) + Number(assets.recurringDeposit || 0) + Number(assets.fixedDeposit || 0),
-            medium: Number(assets.mutualFunds || 0),
-            long: Number(assets.stocks || 0) + Number(assets.nps || 0) + Number(assets.ppf || 0) + Number(assets.pf || 0) + Number(assets.sukanyaSamriddhi || 0),
-        };
-        const calculateRatio = (assetValue: number, goalValue: number) => {
-            if (goalValue === 0) return { ratio: 0, status: 'neutral' as RagStatus };
-            const ratio = Math.min((assetValue / goalValue) * 100, 100);
-            let status: RagStatus = 'red';
-            if (ratio >= 75) status = 'green'; else if (ratio >= 40) status = 'amber';
-            return { ratio, status };
-        };
-        const totalGoalValue = goals.reduce((s, g) => s + Number(g.target_value), 0);
-        const goalCoverageRatios = {
-            overall: { ...calculateRatio(financialAssets, totalGoalValue), label: 'Overall' },
-            short: { ...calculateRatio(assetsByTerm.short, goalsByTerm.short.value), label: 'Short-Term' },
-            medium: { ...calculateRatio(assetsByTerm.medium, goalsByTerm.medium.value), label: 'Medium-Term' },
-            long: { ...calculateRatio(assetsByTerm.long, goalsByTerm.long.value), label: 'Long-Term' },
-        };
-
-        const retirementTarget = (85 - age) * ((monthlyExpenses * 12) * 0.7);
-        const retirementAssets = Math.max(0, financialAssets + Number(assets.otherProperty || 0) - totalGoalValue);
-        const retirementReadiness = {
-            readinessPercentage: Math.min(retirementTarget > 0 ? (retirementAssets / retirementTarget) * 100 : 100, 100),
-            investableAssets: retirementAssets, retirementTarget,
-            status: getRagStatus(retirementTarget > 0 ? (retirementAssets / retirementTarget) * 100 : 100, 40, 20),
-        };
-
-        const equityAssets = Number(assets.stocks || 0) + Number(assets.mutualFunds || 0) + Number(assets.crypto || 0);
-        const equityAllocationPercentage = financialAssets > 0 ? (equityAssets / financialAssets) * 100 : 0;
-        
-        const metrics = { netWorth, healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage, monthlyIncome, monthlyExpenses, monthlySavings, totalMonthlyIncome_MonthlyItems, totalAnnualIncome_AnnualItems, totalMonthlyExpenses_MonthlyItems, totalAnnualExpenses_AnnualItems };
-        
-        const actionList: {key: string; priority: number}[] = [];
-        Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key, priority: 1 }); });
-        Object.entries(healthRatios).forEach(([key, ratio]) => { if (ratio.status === 'amber') actionList.push({ key, priority: 2 }); });
-        if (protectionScores) Object.entries(protectionScores).forEach(([key, score]) => { if (score.status === 'red') actionList.push({ key: `protection-${key}`, priority: 3 }); });
-        if (goalCoverageRatios) Object.entries(goalCoverageRatios).forEach(([key, ratio]) => { if (ratio.status === 'red') actionList.push({ key: `goals-${key}`, priority: 4 }); });
-        if (retirementReadiness && retirementReadiness.status !== 'green') actionList.push({ key: 'retirement', priority: 5 });
-        
-        const { persona } = user;
-        const lowRiskPersonas = ['Guardian', 'Spender'], highRiskPersonas = ['Adventurer', 'Accumulator'];
-        const recommendedEquityByAge = Math.max(0, 110 - age);
-        let allocationAnomalyDetected = false;
-        if (persona && lowRiskPersonas.includes(persona) && equityAllocationPercentage > 40) { actionList.push({ key: 'asset-allocation-persona-aggressive', priority: 6 }); allocationAnomalyDetected = true; }
-        else if (persona && highRiskPersonas.includes(persona) && equityAllocationPercentage < 50) { actionList.push({ key: 'asset-allocation-persona-conservative', priority: 6 }); allocationAnomalyDetected = true; }
-        if (!allocationAnomalyDetected) {
-            if (equityAllocationPercentage > recommendedEquityByAge + 15) actionList.push({ key: 'asset-allocation-age-aggressive', priority: 6 });
-            else if (equityAllocationPercentage < recommendedEquityByAge - 15) actionList.push({ key: 'asset-allocation-age-conservative', priority: 6 });
-        }
-
-        const uniqueActions = Array.from(new Map(actionList.map(item => [item.key, item])).values()).sort((a, b) => a.priority - b.priority);
-        const triggeredActionKeys = uniqueActions.map(a => a.key);
-
-        return { metrics, triggeredActionKeys };
+        if (!user || !financials || !goals) return null;
+        return calculateAllFinancialMetrics(financials, user, goals);
     }, [financials, user, goals]);
 }
 
@@ -219,6 +242,7 @@ const App = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNetWorthOpen, setIsNetWorthOpen] = useState(false);
   const [isNetWorthTimelineOpen, setIsNetWorthTimelineOpen] = useState(false);
+  const [isFinancialHealthTimelineOpen, setIsFinancialHealthTimelineOpen] = useState(false);
   const [isMonthlyFinancesOpen, setIsMonthlyFinancesOpen] = useState(false);
   const [isProtectionOpen, setIsProtectionOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -407,6 +431,30 @@ const App = () => {
   const metrics = metricsData?.metrics;
   const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
 
+  const historicalRatios = useMemo(() => {
+    if (!financialHistory || !currentUser || !goals) return [];
+
+    // Define the type for the object after it has been successfully filtered
+    type ValidHistoricalRatio = { age: number; ratios: Ratios };
+
+    return financialHistory
+        .map(snapshot => {
+            if (!snapshot.snapshot_data || !snapshot.snapshot_date) return null;
+
+            const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            const ageAtSnapshot = (currentUser.age || 0) - yearsAgo;
+
+            const userAtSnapshotTime: UserProfile = { ...currentUser, age: ageAtSnapshot };
+            const snapshotMetricsData = calculateAllFinancialMetrics(snapshot.snapshot_data, userAtSnapshotTime, goals);
+
+            return {
+                age: ageAtSnapshot,
+                ratios: snapshotMetricsData?.metrics.healthRatios || null
+            };
+        })
+        .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
+  }, [financialHistory, currentUser, goals]);
+
 
   if (!isSupabaseConfigured) {
       return <SupabaseConfigError />;
@@ -453,7 +501,9 @@ const App = () => {
       <main>
         {activeView === 'dashboard' && financials && goals && metrics && (
              <>
-                {isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
+                {isFinancialHealthTimelineOpen && currentUser && historicalRatios ? (
+                    <FinancialHealthTimeline historicalRatios={historicalRatios} onBack={() => setIsFinancialHealthTimelineOpen(false)} />
+                ) : isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
                     <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
                 ) : (
                     <div className="dashboard-grid">
@@ -498,7 +548,7 @@ const App = () => {
                             />
                         )}
                         
-                        <FinancialHealthCard ratios={metrics.healthRatios} />
+                        <FinancialHealthCard ratios={metrics.healthRatios} isClickable={hasCompleted('netWorth') && hasCompleted('monthlyFinances')} onClick={() => hasCompleted('netWorth') && hasCompleted('monthlyFinances') && setIsFinancialHealthTimelineOpen(true)} />
 
                         <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
 
