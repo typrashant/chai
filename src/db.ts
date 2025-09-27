@@ -55,6 +55,12 @@ const generateClientID = (): string => {
   return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
+const generateAdvisorCode = (): string => {
+    const randomPart = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `ADV${randomPart}`;
+};
+
+
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -62,25 +68,49 @@ export const createNewUserProfile = async (
   age: number,
   gender: string,
   dependents: number,
-  profession: string
+  profession: string,
+  role: 'Individual' | 'Financial Professional',
+  advisorCodeToLink?: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    const client_id = generateClientID(); 
+
+    const userToInsert: Database['public']['Tables']['app_users']['Insert'] = {
+        user_id,
+        name,
+        phone_number,
+        client_id: generateClientID(), // All users get a client ID for consistency
+        age,
+        gender,
+        dependents,
+        profession,
+        role,
+        points: 70, // Award initial points for completing sign-up
+        locked_points: 0,
+        points_source: { demographics: true }, // Mark the source of points
+    };
+
+    if (role === 'Financial Professional') {
+        userToInsert.advisor_code = generateAdvisorCode();
+    } else if (role === 'Individual' && advisorCodeToLink) {
+        // Find advisor by code to link
+        const { data: advisor, error: advisorError } = await supabase
+            .from('app_users')
+            .select('user_id')
+            .eq('advisor_code', advisorCodeToLink)
+            .single();
+
+        if (advisorError) {
+            console.error('Error finding advisor by code:', advisorError);
+            // Decide if we should still create the user or fail.
+            // For now, we'll create the user without linking.
+        } else if (advisor) {
+            userToInsert.advisor_id = advisor.user_id;
+        }
+    }
+
     const { data, error } = await supabase
         .from('app_users')
-        .insert([{
-            user_id,
-            name,
-            phone_number,
-            client_id,
-            age,
-            gender,
-            dependents,
-            profession,
-            points: 70, // Award initial points for completing sign-up
-            locked_points: 0,
-            points_source: { demographics: true }, // Mark the source of points
-        }])
+        .insert([userToInsert])
         .select()
         .single();
         
@@ -96,6 +126,81 @@ export const createNewUserProfile = async (
     
     return null;
 }
+
+export const linkClientToAdvisor = async (userId: string, advisorCode: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data: advisor, error: findError } = await supabase
+        .from('app_users')
+        .select('user_id')
+        .eq('advisor_code', advisorCode)
+        .eq('role', 'Financial Professional')
+        .single();
+    
+    if (findError || !advisor) {
+        console.error("Invalid advisor code or error finding advisor", findError);
+        return null;
+    }
+
+    const { data: updatedUser, error: updateError } = await supabase
+        .from('app_users')
+        .update({ advisor_id: advisor.user_id })
+        .eq('user_id', userId)
+        .select()
+        .single();
+    
+    if (updateError) {
+        console.error("Error linking client to advisor", updateError);
+        return null;
+    }
+    return updatedUser;
+};
+
+export const shareReportWithAdvisor = async (userId: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data: updatedUser, error } = await supabase
+        .from('app_users')
+        .update({ report_shared_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error sharing report", error);
+        return null;
+    }
+    return updatedUser;
+};
+
+export const getAdvisorClients = async (advisorId: string): Promise<UserProfile[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('advisor_id', advisorId);
+    
+    if (error) {
+        console.error('Error fetching advisor clients:', error);
+        return [];
+    }
+    return data || [];
+};
+
+export const getAdvisorProfile = async (advisorId: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('user_id', advisorId)
+        .eq('role', 'Financial Professional')
+        .single();
+
+    if (error) {
+        console.error("Error fetching advisor profile", error);
+        return null;
+    }
+    return data;
+};
+
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
