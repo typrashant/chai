@@ -6,6 +6,8 @@ interface AuthProps {
   onLoginSuccess: (user: UserProfile) => void;
 }
 
+const APP_VERSION = '1.1.0';
+
 // Logo and Icons can remain as they are, purely presentational.
 const Logo = () => (
     <svg className="logo-svg" width="50" height="50" viewBox="0 0 50 50" aria-label="ChAi app logo, a steaming cutting chai glass">
@@ -217,6 +219,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             <button className="auth-button" type="submit" disabled={isLoading}>
               {isLoading ? 'Verifying...' : 'Verify & Continue'}
             </button>
+            <div className="auth-footer">
+                <p>Disclaimer: ChAi app is for financial planning education. For financial advice, please get in touch with a certified advisor.</p>
+                <p>&copy; {new Date().getFullYear()} ChAi | Version {APP_VERSION}</p>
+            </div>
           </form>
         );
       case 3:

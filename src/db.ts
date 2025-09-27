@@ -130,18 +130,30 @@ export const createNewUserProfile = async (
 export const linkClientToAdvisor = async (userId: string, advisorCode: string): Promise<{success: boolean, message: string, user: UserProfile | null}> => {
     if (!supabase) return {success: false, message: 'Database not configured', user: null};
     
-    const { data: advisor, error: findError } = await supabase
+    // Step 1: Find a user with the given advisor code, regardless of role.
+    const { data: potentialAdvisors, error: findError } = await supabase
         .from('app_users')
-        .select('user_id')
-        .eq('advisor_code', advisorCode)
-        .eq('role', 'Financial Professional')
-        .single();
-    
-    if (findError || !advisor) {
-        console.error("Invalid advisor code or error finding advisor", findError);
-        return {success: false, message: 'Invalid advisor code. Please try again.', user: null};
+        .select('user_id, role')
+        .eq('advisor_code', advisorCode);
+
+    if (findError) {
+        console.error("Error finding user by advisor code:", findError);
+        return {success: false, message: 'An unexpected error occurred while verifying the code.', user: null};
     }
 
+    // Step 2: Check if any user was found.
+    if (!potentialAdvisors || potentialAdvisors.length === 0) {
+        return {success: false, message: 'Invalid advisor code. Please check the code and try again.', user: null};
+    }
+    
+    const advisor = potentialAdvisors[0];
+
+    // Step 3: Verify the role of the found user.
+    if (advisor.role !== 'Financial Professional') {
+        return {success: false, message: 'This code is valid, but the user is not a registered Financial Professional.', user: null};
+    }
+
+    // Step 4: Proceed with linking the client to the validated advisor.
     const { data: updatedUser, error: updateError } = await supabase
         .from('app_users')
         .update({ advisor_id: advisor.user_id })
