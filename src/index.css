@@ -1,4 +1,3 @@
-
 :root {
   /* New Dark Mode Palette */
   --primary-color: #F59E0B; /* amber-500 */
@@ -234,6 +233,29 @@ main {
 }
 .logout-button:hover {
     background-color: rgba(248, 113, 113, 0.1);
+}
+
+.advisor-link-form {
+    padding: 0.75rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.advisor-link-form label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.advisor-link-form .form-group {
+    gap: 0.25rem;
+}
+.advisor-link-form .form-group input {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+}
+.advisor-link-form button {
+    align-self: flex-end;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
 }
 
 

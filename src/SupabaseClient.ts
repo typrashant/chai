@@ -1,4 +1,3 @@
-
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -157,6 +156,13 @@ export interface Database {
             isOneToOne: true;
             referencedRelation: "users";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "app_users_advisor_id_fkey";
+            columns: ["advisor_id"];
+            isOneToOne: false;
+            referencedRelation: "app_users";
+            referencedColumns: ["user_id"];
           }
         ];
       };
