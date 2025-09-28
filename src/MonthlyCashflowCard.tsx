@@ -72,6 +72,7 @@ interface MonthlyCashflowCardProps {
   onToggle: () => void;
   isCompleted: boolean;
   potentialPoints: number;
+  isReadOnly?: boolean;
 }
 
 const needsKeys: (keyof Expenses)[] = ['rent', 'emi', 'utilities', 'societyMaintenance', 'propertyTax', 'groceries', 'transport', 'health', 'education', 'insurancePremiums'];
@@ -88,7 +89,8 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
     totalAnnualExpenses_AnnualItems,
     onToggle, 
     isCompleted, 
-    potentialPoints 
+    potentialPoints,
+    isReadOnly
 }) => {
     const [viewMode, setViewMode] = useState<'monthly' | 'annually'>('monthly');
     
@@ -178,7 +180,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
             <div className="summary-card-header">
                 <div className="summary-card-title-group">
                     <h2>Income & Expenses</h2>
-                    {!isCompleted && <div className="potential-points">✨ {potentialPoints} Points</div>}
+                    {!isCompleted && !isReadOnly && <div className="potential-points">✨ {potentialPoints} Points</div>}
                 </div>
                  <div className="summary-card-controls">
                     {isCompleted && (
@@ -187,7 +189,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
                             <button className={viewMode === 'annually' ? 'active' : ''} onClick={() => setViewMode('annually')}>Annually</button>
                         </div>
                     )}
-                    <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>
+                    {!isReadOnly && <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>}
                 </div>
             </div>
 

@@ -136,6 +136,22 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
     return data;
 }
 
+export const getAdvisorProfileById = async (advisor_id: string): Promise<{ name: string | null; advisor_code: string | null } | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('name, advisor_code')
+        .eq('user_id', advisor_id)
+        .eq('role', 'Financial Professional')
+        .single();
+
+    if (error) {
+        console.error('Error fetching advisor profile:', error);
+        return null;
+    }
+    return data;
+};
+
 export const getAdvisorClients = async (advisor_id: string): Promise<UserProfile[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase
@@ -152,22 +168,31 @@ export const getAdvisorClients = async (advisor_id: string): Promise<UserProfile
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;
+    // We remove .single() to prevent errors when a new user has no snapshots.
+    // The query now returns an array.
     const { data, error } = await supabase
         .from('financial_snapshots')
-        .select('snapshot_data') 
+        .select('snapshot_data')
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
+        // Any database error is a problem.
         console.error('Error fetching latest financial snapshot:', error);
         return null;
     }
     
-    if (!data) return null;
-    if ('snapshot_data' in data) {
-      return data.snapshot_data;
+    // If data is null, or an empty array, it means no snapshot was found (which is fine for a new user).
+    if (!data || data.length === 0) {
+        return null;
+    }
+    
+    const latestSnapshot = data[0];
+
+    // Check if the snapshot_data property exists and is not null.
+    if (latestSnapshot && 'snapshot_data' in latestSnapshot && latestSnapshot.snapshot_data) {
+      return latestSnapshot.snapshot_data;
     }
     
     return null;

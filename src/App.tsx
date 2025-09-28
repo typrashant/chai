@@ -40,6 +40,7 @@ import {
     completeUserAction,
     linkAdvisor,
     shareReport,
+    getAdvisorProfileById,
 } from './db.ts';
 
 type RagStatusHealth = 'green' | 'amber' | 'red';
@@ -255,6 +256,7 @@ const App = () => {
   const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
   const [advisorCodeInput, setAdvisorCodeInput] = useState('');
   const [linkingStatus, setLinkingStatus] = useState('');
+  const [linkedAdvisor, setLinkedAdvisor] = useState<{ name: string | null; advisor_code: string | null } | null>(null);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [clientToView, setClientToView] = useState<UserProfile | null>(null);
@@ -301,6 +303,16 @@ const App = () => {
     };
     checkUser();
   }, []);
+  
+  useEffect(() => {
+    const fetchAdvisorInfo = async () => {
+      if (currentUser?.advisor_id) {
+        const advisorProfile = await getAdvisorProfileById(currentUser.advisor_id);
+        setLinkedAdvisor(advisorProfile);
+      }
+    };
+    fetchAdvisorInfo();
+  }, [currentUser?.advisor_id]);
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
@@ -451,7 +463,9 @@ const App = () => {
     if (result.error) {
         setLinkingStatus(result.error);
     } else if (result.user) {
-        setCurrentUser(result.user);
+        const updatedProfile = await getUserProfile(currentUser.user_id);
+        if(updatedProfile) setCurrentUser(updatedProfile);
+        
         setLinkingStatus('Advisor linked successfully!');
         setAdvisorCodeInput('');
         setTimeout(() => {
@@ -555,6 +569,14 @@ const App = () => {
                 <div className="profile-dropdown-item"><span>{isIndividual ? 'Client ID' : 'Advisor Code'}</span><strong>{isIndividual ? currentUser.client_id : currentUser.advisor_code}</strong></div>
                 <div className="profile-dropdown-item"><span>App Version</span><strong>{APP_VERSION}</strong></div>
                 
+                {isIndividual && currentUser.advisor_id && linkedAdvisor && (
+                  <>
+                    <div className="profile-dropdown-divider"></div>
+                    <div className="profile-dropdown-item"><span>Advisor</span><strong>{linkedAdvisor.name}</strong></div>
+                    <div className="profile-dropdown-item"><span>Advisor Code</span><strong>{linkedAdvisor.advisor_code}</strong></div>
+                  </>
+                )}
+
                 {isIndividual && !currentUser.advisor_id && (
                   <>
                     <div className="profile-dropdown-divider"></div>
@@ -624,12 +646,11 @@ const App = () => {
             </nav>
             {currentUser.advisor_id && (
                 <button 
-                    className={`share-fab ${currentUser.report_shared_at ? 'shared' : ''}`} 
-                    onClick={() => !currentUser.report_shared_at && setIsShareModalOpen(true)}
-                    title={currentUser.report_shared_at ? `Shared on ${new Date(currentUser.report_shared_at).toLocaleDateString()}` : 'Share Report with Advisor'}
-                    disabled={!!currentUser.report_shared_at}
+                    className="share-fab"
+                    onClick={() => setIsShareModalOpen(true)}
+                    title={currentUser.report_shared_at ? `Last shared on ${new Date(currentUser.report_shared_at).toLocaleDateString()}. Click to share updated report.` : 'Share Report with Advisor'}
                 >
-                    {currentUser.report_shared_at ? <SharedIcon /> : <ShareIcon />}
+                    <ShareIcon />
                 </button>
             )}
           </main>

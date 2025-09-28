@@ -171,7 +171,7 @@ const AdvisorDashboard = ({ advisor, onViewClientReport }: { advisor: UserProfil
     return (
         <div className="advisor-dashboard">
             <div className="kpi-grid">
-                <KpiCard title="Total Clients" value={kpis.totalClients} />
+                <KpiCard title="Total Linked Clients" value={kpis.totalClients} />
                 <KpiCard title="Net Worth Calculated" value={kpis.netWorthCalculated} />
                 <KpiCard title="Cash Flow Added" value={kpis.cashFlowAdded} />
                 <KpiCard title="Planning Completed" value={kpis.planningCompleted} />

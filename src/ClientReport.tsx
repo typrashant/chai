@@ -86,6 +86,7 @@ const ClientReport: React.FC<ClientReportProps> = ({ client, reportData, onClose
                             onToggle={() => {}}
                             isCompleted={true}
                             potentialPoints={0}
+                            isReadOnly={true}
                         />
                     </div>
 
@@ -106,6 +107,7 @@ const ClientReport: React.FC<ClientReportProps> = ({ client, reportData, onClose
                             onToggle={() => {}} 
                             isCompleted={true} 
                             potentialPoints={0}
+                            isReadOnly={true}
                         />
                     </div>
                     
@@ -124,6 +126,7 @@ const ClientReport: React.FC<ClientReportProps> = ({ client, reportData, onClose
                             onToggle={() => {}} 
                             isCompleted={goals.length > 0} 
                             potentialPoints={0} 
+                            isReadOnly={true}
                         />
                     </div>
                 </div>
