@@ -1,4 +1,3 @@
-
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -113,6 +112,8 @@ export interface Database {
           updated_at: string;
           advisor_id: string | null;
           advisor_code: string | null;
+          role: 'Individual' | 'Financial Professional';
+          report_shared_at: string | null;
         };
         Insert: { // The data shape needed to insert a new row.
           user_id: string;
@@ -129,6 +130,8 @@ export interface Database {
           points_source?: Json;
           advisor_id?: string | null;
           advisor_code?: string | null;
+          role?: 'Individual' | 'Financial Professional';
+          report_shared_at?: string | null;
         };
         Update: { // The data shape needed to update a row.
           name?: string;
@@ -143,6 +146,8 @@ export interface Database {
           updated_at?: string;
           advisor_id?: string | null;
           advisor_code?: string | null;
+          role?: 'Individual' | 'Financial Professional';
+          report_shared_at?: string | null;
         };
         Relationships: [
           {

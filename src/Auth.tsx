@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
@@ -35,6 +34,7 @@ const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" hei
 const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
+  const [role, setRole] = useState<'Individual' | 'Financial Professional'>('Individual');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -50,15 +50,27 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     // On component mount, check for an advisor code in the URL
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('advisor_code');
+      const code = urlParams.get('advisorCode'); // Changed from advisor_code
       if (code) {
-        console.log("Advisor code found in URL:", code);
         setAdvisorCode(code);
       }
-    } catch (error) {
-      console.error("Could not parse URL params:", error);
+    } catch (e) {
+      console.error("Could not parse URL params:", e);
     }
   }, []);
+  
+  const cleanUrl = () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('advisorCode')) {
+        url.searchParams.delete('advisorCode');
+        window.history.replaceState({}, document.title, url.toString());
+    }
+  };
+
+  const handleLoginSuccess = (user: UserProfile) => {
+    cleanUrl();
+    onLoginSuccess(user);
+  };
 
   const resetForm = () => {
     setName('');
@@ -118,7 +130,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     if (session) {
       const existingProfile = await getUserProfile(session.user.id);
       if (existingProfile) {
-        onLoginSuccess(existingProfile);
+        handleLoginSuccess(existingProfile);
       } else {
         // New user, proceed to demographics
         setStep(3);
@@ -154,11 +166,12 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         gender,
         dependents,
         profession,
+        role,
         advisorCode // Pass advisor code if it exists
       );
 
       if (newProfile) {
-        onLoginSuccess(newProfile);
+        handleLoginSuccess(newProfile);
       } else {
         setError('There was an error creating your profile. Please try again.');
         setIsLoading(false);
@@ -177,10 +190,19 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         return (
           <form onSubmit={handlePhoneSubmit}>
             {authMode === 'signup' && (
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
-              </div>
+              <>
+                <div className="form-group">
+                    <label>I am a...</label>
+                    <div className="binary-toggle">
+                        <button type="button" className={role === 'Individual' ? 'active' : ''} onClick={() => setRole('Individual')}>Individual</button>
+                        <button type="button" className={role === 'Financial Professional' ? 'active' : ''} onClick={() => setRole('Financial Professional')}>Financial Professional</button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="name">Full Name</label>
+                    <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
+                </div>
+              </>
             )}
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>

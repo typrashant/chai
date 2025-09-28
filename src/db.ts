@@ -1,4 +1,3 @@
-
 // This file now acts as the data access layer for our Supabase backend.
 import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
 
@@ -55,6 +54,15 @@ const generateClientID = (): string => {
   return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
+const generateAdvisorCode = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'ADV';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -63,44 +71,46 @@ export const createNewUserProfile = async (
   gender: string,
   dependents: number,
   profession: string,
+  role: 'Individual' | 'Financial Professional',
   advisorCode?: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
 
     let advisorUserId: string | null = null;
-    if (advisorCode) {
-        console.log(`Searching for advisor with code: ${advisorCode}`);
+    if (role === 'Individual' && advisorCode) {
         const { data: advisor, error: advisorError } = await supabase
             .from('app_users')
             .select('user_id')
             .eq('advisor_code', advisorCode.trim())
             .single();
 
-        if (advisor) {
-            console.log(`Found advisor with user_id: ${advisor.user_id}`);
-            advisorUserId = advisor.user_id;
-        } else {
-            console.warn(`Advisor code "${advisorCode}" not found.`, advisorError);
-        }
+        if (advisor) advisorUserId = advisor.user_id;
+        else console.warn(`Advisor code "${advisorCode}" not found.`, advisorError);
     }
 
-    const client_id = generateClientID(); 
+    const insertData: Database['public']['Tables']['app_users']['Insert'] = {
+        user_id,
+        name,
+        phone_number,
+        client_id: generateClientID(),
+        age,
+        gender,
+        dependents,
+        profession,
+        role,
+        points: 70, // Award initial points for completing sign-up
+        locked_points: 0,
+        points_source: { demographics: true }, // Mark the source of points
+        advisor_id: advisorUserId,
+    };
+
+    if (role === 'Financial Professional') {
+        insertData.advisor_code = generateAdvisorCode();
+    }
+    
     const { data, error } = await supabase
         .from('app_users')
-        .insert([{
-            user_id,
-            name,
-            phone_number,
-            client_id,
-            age,
-            gender,
-            dependents,
-            profession,
-            points: 70, // Award initial points for completing sign-up
-            locked_points: 0,
-            points_source: { demographics: true }, // Mark the source of points
-            advisor_id: advisorUserId,
-        }])
+        .insert([insertData])
         .select()
         .single();
         
@@ -108,13 +118,7 @@ export const createNewUserProfile = async (
         console.error('Error creating user profile:', error);
         return null;
     }
-
-    if (!data) return null;
-    if ('user_id' in data) {
-        return data;
-    }
-    
-    return null;
+    return data;
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
@@ -129,14 +133,22 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         console.error('Error fetching user profile:', error);
         return null;
     }
-    
-    if (!data) return null;
-    if ('user_id' in data) {
-        return data;
-    }
-
-    return null;
+    return data;
 }
+
+export const getAdvisorClients = async (advisor_id: string): Promise<UserProfile[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('advisor_id', advisor_id);
+
+    if (error) {
+        console.error('Error fetching advisor clients:', error);
+        return [];
+    }
+    return data;
+};
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;
@@ -179,31 +191,25 @@ export const getFinancialHistory = async (user_id: string): Promise<FinancialSna
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
     
-    console.log("Attempting to create financial snapshot for user:", user_id);
     const sanitizedFinancials = sanitizeForSupabase(financials);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
         .from('financial_snapshots')
         .insert([{
             user_id,
             snapshot_data: sanitizedFinancials as Financials,
-        }])
-        .select(); 
+        }]); 
 
     if (error) {
         console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
-        console.error(`Failed to save financial data: ${error.message}. This could be a database permission (RLS) issue.`);
         return false;
     }
-
-    console.log("Successfully created snapshot:", data);
     return true;
 }
 
 export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    console.log("Attempting to update persona and award points for user:", user_id);
-
+    
     const { data: currentProfile, error: getError } = await supabase
         .from('app_users')
         .select('points, points_source')
@@ -211,8 +217,7 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (getError || !currentProfile) {
-        console.error('Could not fetch user to award points:', JSON.stringify(getError, null, 2));
-        console.error(`Failed to fetch user profile to save persona: ${getError?.message}.`);
+        console.error('Could not fetch user to award points:', getError);
         return null;
     }
     
@@ -237,19 +242,10 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (error) {
-        console.error('Error updating persona and points:', JSON.stringify(error, null, 2));
-        console.error(`Failed to save persona: ${error.message}. This could be a database permission (RLS) issue.`);
+        console.error('Error updating persona and points:', error);
         return null;
     }
-
-    console.log("Successfully updated user profile:", data);
-    
-    if (!data) return null;
-    if ('user_id' in data) {
-        return data;
-    }
-
-    return null;
+    return data;
 }
 
 
@@ -275,12 +271,7 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
         console.error('Error awarding points:', error);
         return null;
     }
-
-    if (data && 'user_id' in data) {
-        return data;
-    }
-    
-    return null;
+    return data;
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
@@ -371,7 +362,6 @@ export const startUserAction = async (user_id: string, action_key: string, targe
         
     if (userError) {
         console.error('Error updating locked points:', userError);
-        // Attempt to roll back action creation? For now, we'll just log.
         return null;
     }
     
@@ -439,3 +429,21 @@ export const linkAdvisor = async (userId: string, advisorCode: string): Promise<
 
     return { user: updatedUser };
 }
+
+export const shareReport = async (userId: string): Promise<{ user?: UserProfile | null; error?: string }> => {
+    if (!supabase) return { error: "Database not connected" };
+
+    const { data: updatedUser, error } = await supabase
+        .from('app_users')
+        .update({ report_shared_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error('Error sharing report:', error);
+        return { error: "Could not share report. Please try again." };
+    }
+
+    return { user: updatedUser };
+};
