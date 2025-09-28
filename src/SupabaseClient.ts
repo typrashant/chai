@@ -250,7 +250,13 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      // FIX: Define the RPC function signature to ensure correct type inference.
+      link_advisor_by_code: {
+        Args: {
+          advisor_code_to_link: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       [_ in never]: never;

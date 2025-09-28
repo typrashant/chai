@@ -13,6 +13,8 @@ interface ClientData extends UserProfile {
     netWorth?: number;
 }
 
+const FilterIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>);
+
 const calculateCompletion = (client: { persona: string | null, financials?: Financials | null, goals?: Goal[] | null }): number => {
     let score = 0;
     if (client.persona) score += 20;
@@ -78,6 +80,7 @@ const AdvisorDashboard = ({ advisor, onViewClientReport }: { advisor: UserProfil
     const [isLoading, setIsLoading] = useState(true);
     const [filters, setFilters] = useState({ search: '', status: 'all', regDateStart: '', regDateEnd: '', netWorthMin: '', netWorthMax: '', ageMin: '', ageMax: '' });
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
     useEffect(() => {
         const fetchClientData = async () => {
@@ -174,37 +177,45 @@ const AdvisorDashboard = ({ advisor, onViewClientReport }: { advisor: UserProfil
                 <KpiCard title="Planning Completed" value={kpis.planningCompleted} />
             </div>
 
-            <div className="client-management-section">
+            <div className="card client-management-card">
                  <div className="client-controls">
-                     <input type="text" className="form-group input" name="search" placeholder="Search by name or phone..." value={filters.search} onChange={handleFilterChange} style={{flexGrow: 1, maxWidth: '400px'}} />
-                    <button className="invite-button" onClick={() => setIsInviteModalOpen(true)}>+ Invite New Client</button>
+                     <input type="text" className="form-group input" name="search" placeholder="Search by name or phone..." value={filters.search} onChange={handleFilterChange} />
+                    <div className="client-controls-right">
+                        <button className={`filter-toggle-button ${isFiltersVisible ? 'active' : ''}`} onClick={() => setIsFiltersVisible(!isFiltersVisible)}>
+                            <FilterIcon />
+                            <span>Filters</span>
+                        </button>
+                        <button className="invite-button" onClick={() => setIsInviteModalOpen(true)}>+ Invite New Client</button>
+                    </div>
                 </div>
 
-                <div className="filters-grid">
-                    <div className="filter-group">
-                        <label>Completion Status</label>
-                        <select name="status" value={filters.status} onChange={handleFilterChange} className="form-group select">
-                            <option value="all">All Statuses</option>
-                            <option value="completed">Completed (100%)</option>
-                            <option value="in_progress">In Progress (1-99%)</option>
-                            <option value="not_started">Not Started (0%)</option>
-                        </select>
-                    </div>
-                     <div className="filter-group">
-                        <label>Net Worth</label>
-                        <div className="input-range">
-                            <input type="number" name="netWorthMin" placeholder="Min" value={filters.netWorthMin} onChange={handleFilterChange} className="form-group input" />
-                            <input type="number" name="netWorthMax" placeholder="Max" value={filters.netWorthMax} onChange={handleFilterChange} className="form-group input" />
+                {isFiltersVisible && (
+                    <div className="filters-grid">
+                        <div className="filter-group">
+                            <label>Completion Status</label>
+                            <select name="status" value={filters.status} onChange={handleFilterChange} className="form-group select">
+                                <option value="all">All Statuses</option>
+                                <option value="completed">Completed (100%)</option>
+                                <option value="in_progress">In Progress (1-99%)</option>
+                                <option value="not_started">Not Started (0%)</option>
+                            </select>
+                        </div>
+                         <div className="filter-group">
+                            <label>Net Worth</label>
+                            <div className="input-range">
+                                <input type="number" name="netWorthMin" placeholder="Min" value={filters.netWorthMin} onChange={handleFilterChange} className="form-group input" />
+                                <input type="number" name="netWorthMax" placeholder="Max" value={filters.netWorthMax} onChange={handleFilterChange} className="form-group input" />
+                            </div>
+                        </div>
+                        <div className="filter-group">
+                            <label>Age</label>
+                            <div className="input-range">
+                                <input type="number" name="ageMin" placeholder="Min" value={filters.ageMin} onChange={handleFilterChange} className="form-group input" />
+                                <input type="number" name="ageMax" placeholder="Max" value={filters.ageMax} onChange={handleFilterChange} className="form-group input" />
+                            </div>
                         </div>
                     </div>
-                    <div className="filter-group">
-                        <label>Age</label>
-                        <div className="input-range">
-                            <input type="number" name="ageMin" placeholder="Min" value={filters.ageMin} onChange={handleFilterChange} className="form-group input" />
-                            <input type="number" name="ageMax" placeholder="Max" value={filters.ageMax} onChange={handleFilterChange} className="form-group input" />
-                        </div>
-                    </div>
-                </div>
+                )}
 
                 <div className="client-table-container">
                     <table className="client-table">
@@ -230,7 +241,7 @@ const AdvisorDashboard = ({ advisor, onViewClientReport }: { advisor: UserProfil
                                     <td>{client.netWorth != null ? formatCurrency(client.netWorth) : 'N/A'}</td>
                                     <td>
                                         <div className="completion-bar" title={`${client.completion}%`}>
-                                            <div className="completion-bar-inner" style={{width: `${client.completion}%`}}></div>
+                                            <div className="completion-bar-inner" style={{width: `${client.completion || 0}%`}}></div>
                                         </div>
                                     </td>
                                     <td>

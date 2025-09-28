@@ -432,7 +432,7 @@ const App = () => {
     if (!currentUser || !advisorCodeInput) return;
     setLinkingStatus('Linking...');
 
-    const result = await linkAdvisor(currentUser.user_id, advisorCodeInput);
+    const result = await linkAdvisor(advisorCodeInput);
     if (result.error) {
         setLinkingStatus(result.error);
     } else if (result.user) {

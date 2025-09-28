@@ -400,35 +400,31 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
     return updatedUser;
 };
 
-export const linkAdvisor = async (userId: string, advisorCode: string): Promise<{ user?: UserProfile | null; error?: string }> => {
+export const linkAdvisor = async (advisorCode: string): Promise<{ user?: UserProfile | null; error?: string }> => {
     if (!supabase) return { error: "Database not connected" };
     if (!advisorCode) return { error: "Advisor code cannot be empty" };
 
-    const { data: advisor, error: advisorError } = await supabase
-        .from('app_users')
-        .select('user_id')
-        .eq('advisor_code', advisorCode.trim().toUpperCase())
-        .single();
-    
-    if (advisorError || !advisor) {
-        console.error("Error finding advisor:", advisorError);
-        return { error: "Invalid advisor code." };
+    const { data, error } = await supabase.rpc('link_advisor_by_code', {
+        advisor_code_to_link: advisorCode,
+    });
+
+    if (error) {
+        console.error("Error calling link_advisor_by_code RPC:", error);
+        // Provide a more generic error to the user for security.
+        return { error: "An unexpected error occurred. Please try again." };
     }
 
-    const { data: updatedUser, error: updateError } = await supabase
-        .from('app_users')
-        .update({ advisor_id: advisor.user_id })
-        .eq('user_id', userId)
-        .select()
-        .single();
-    
-    if (updateError) {
-        console.error("Error linking advisor:", updateError);
-        return { error: "Failed to link advisor. Please try again." };
+    // The RPC function is designed to return an object with an 'error' key on failure.
+    // FIX: Cast `data` to `any` to safely access the `error` property from the JSON response.
+    if (data && (data as any).error) {
+        console.error("Error from RPC function:", (data as any).error);
+        return { error: (data as any).error };
     }
 
-    return { user: updatedUser };
-}
+    // On success, it returns the updated user profile JSON.
+    return { user: data as UserProfile };
+};
+
 
 export const shareReport = async (userId: string): Promise<{ user?: UserProfile | null; error?: string }> => {
     if (!supabase) return { error: "Database not connected" };
