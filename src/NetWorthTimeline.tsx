@@ -1,6 +1,8 @@
 
+
 import React, { useMemo } from 'react';
-import { type UserProfile, type FinancialSnapshot } from './db';
+// FIX: Import Assets and Liabilities types to perform type-safe calculations.
+import { type UserProfile, type FinancialSnapshot, type Assets, type Liabilities } from './db';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
@@ -30,9 +32,11 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, fina
     const chartData = useMemo(() => {
         const userProgressPoints = financialHistory
             .map(snapshot => {
-                if (!snapshot.snapshot_data?.assets || !snapshot.snapshot_date) return null;
-                const assets = Object.values(snapshot.snapshot_data.assets).reduce((s, v) => s + Number(v), 0);
-                const liabilities = Object.values(snapshot.snapshot_data.liabilities || {}).reduce((s, v) => s + Number(v), 0);
+                if (!snapshot.snapshot_data || !snapshot.snapshot_data.assets || !snapshot.snapshot_date) return null;
+                // FIX: Use Object.keys for type-safe summation to resolve calculation errors.
+                const assets = Object.keys(snapshot.snapshot_data.assets).reduce((s, k) => s + Number(snapshot.snapshot_data.assets[k as keyof Assets] || 0), 0);
+                const liabilitiesObj = snapshot.snapshot_data.liabilities || {};
+                const liabilities = Object.keys(liabilitiesObj).reduce((s, k) => s + Number(liabilitiesObj[k as keyof Liabilities] || 0), 0);
                 const snapshotNetWorth = assets - liabilities;
 
                 const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);

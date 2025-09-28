@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { type UserProfile, type UserAction } from './db.ts';
 import { WarningIcon } from './icons.tsx';
@@ -13,7 +14,16 @@ interface MyPlanProps {
     onCompleteAction: (actionId: string) => void;
 }
 
-const ActionCard = ({ title, description, severity, icon, onStart }: { title: string; description: string; severity: 'high' | 'medium'; icon: React.ReactNode; onStart: () => void; }) => (
+// FIX: Define a props interface and use React.FC to correctly type the component and its props, resolving errors with the `key` prop.
+interface ActionCardProps {
+    title: string;
+    description: string;
+    severity: 'high' | 'medium';
+    icon: React.ReactNode;
+    onStart: () => void;
+}
+
+const ActionCard: React.FC<ActionCardProps> = ({ title, description, severity, icon, onStart }) => (
     <div className="action-card">
         <div className="action-card-main-content">
             <div className={`action-card-icon severity-${severity}`}>
@@ -31,7 +41,14 @@ const ActionCard = ({ title, description, severity, icon, onStart }: { title: st
     </div>
 );
 
-const ActionCardInProgress = ({ title, targetDate, onComplete }: { title: string; targetDate: string; onComplete: () => void; }) => {
+// FIX: Define a props interface and use React.FC to correctly type the component and its props, resolving errors with the `key` prop.
+interface ActionCardInProgressProps {
+    title: string;
+    targetDate: string;
+    onComplete: () => void;
+}
+
+const ActionCardInProgress: React.FC<ActionCardInProgressProps> = ({ title, targetDate, onComplete }) => {
     const formattedDate = new Date(targetDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
     return (
         <div className="action-card in-progress">
@@ -69,7 +86,7 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, triggeredAc
     const { persona } = user;
     const { healthRatios, protectionScores, goalCoverageRatios, retirementReadiness, equityAllocationPercentage } = metrics;
     
-    const actionMap: { [key: string]: Omit<React.ComponentProps<typeof ActionCard>, 'onStart'> } = {
+    const actionMap: { [key: string]: Omit<ActionCardProps, 'onStart'> } = {
       'savingsRatio': { severity: "high", icon: <WarningIcon />, title: "Boost Your Savings Ratio", description: `Your savings ratio is ${healthRatios.savingsRatio.value.toFixed(0)}%, which is below the recommended 20%. Review your expenses or explore ways to increase your income to save more each month.` },
       'liquidityRatio': { severity: "high", icon: <WarningIcon />, title: "Build Your Emergency Fund", description: `You have ${healthRatios.liquidityRatio.value.toFixed(1)} months of expenses saved. Aim for at least 3-6 months in an easily accessible account to cover unexpected events.` },
       'debtToIncomeRatio': { severity: "high", icon: <WarningIcon />, title: "Reduce High-Interest Debt", description: `Your debt-to-income ratio is high at ${healthRatios.debtToIncomeRatio.value.toFixed(0)}%. Focus on paying down high-interest loans like credit cards or personal loans to free up your cash flow.` },

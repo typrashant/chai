@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
@@ -5,8 +6,6 @@ import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts'
 interface AuthProps {
   onLoginSuccess: (user: UserProfile) => void;
 }
-
-const APP_VERSION = '1.1.0';
 
 // Logo and Icons can remain as they are, purely presentational.
 const Logo = () => (
@@ -36,7 +35,6 @@ const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" hei
 const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
-  const [role, setRole] = useState<'Individual' | 'Financial Professional'>('Individual');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -46,15 +44,19 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [dependents, setDependents] = useState<number>(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [advisorCodeFromUrl, setAdvisorCodeFromUrl] = useState<string | null>(null);
+  const [advisorCode, setAdvisorCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('advisorCode');
-    if (code) {
-        setAdvisorCodeFromUrl(code);
-        // Clean the URL to prevent re-use or confusion
-        window.history.replaceState({}, document.title, window.location.pathname);
+    // On component mount, check for an advisor code in the URL
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('advisor_code');
+      if (code) {
+        console.log("Advisor code found in URL:", code);
+        setAdvisorCode(code);
+      }
+    } catch (error) {
+      console.error("Could not parse URL params:", error);
     }
   }, []);
 
@@ -117,13 +119,9 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       const existingProfile = await getUserProfile(session.user.id);
       if (existingProfile) {
         onLoginSuccess(existingProfile);
-      } else if (authMode === 'signup') {
+      } else {
         // New user, proceed to demographics
         setStep(3);
-      } else { // signin mode but no profile found
-        setError("No account found with this number. Please sign up first.");
-        setStep(1); // Go back to phone step
-        setAuthMode('signup');
       }
     }
     setIsLoading(false);
@@ -156,8 +154,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         gender,
         dependents,
         profession,
-        role,
-        advisorCodeFromUrl
+        advisorCode // Pass advisor code if it exists
       );
 
       if (newProfile) {
@@ -179,15 +176,6 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       case 1:
         return (
           <form onSubmit={handlePhoneSubmit}>
-             {authMode === 'signup' && (
-                <div className="form-group">
-                    <label>I am a...</label>
-                    <div className="binary-toggle">
-                        <button type="button" className={role === 'Individual' ? 'active' : ''} onClick={() => setRole('Individual')}>Individual</button>
-                        <button type="button" className={role === 'Financial Professional' ? 'active' : ''} onClick={() => setRole('Financial Professional')}>Financial Professional</button>
-                    </div>
-                </div>
-             )}
             {authMode === 'signup' && (
               <div className="form-group">
                 <label htmlFor="name">Full Name</label>
@@ -219,10 +207,6 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             <button className="auth-button" type="submit" disabled={isLoading}>
               {isLoading ? 'Verifying...' : 'Verify & Continue'}
             </button>
-            <div className="auth-footer">
-                <p>Disclaimer: ChAi app is for financial planning education. For financial advice, please get in touch with a certified advisor.</p>
-                <p>&copy; {new Date().getFullYear()} ChAi | Version {APP_VERSION}</p>
-            </div>
           </form>
         );
       case 3:

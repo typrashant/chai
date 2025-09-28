@@ -1,3 +1,4 @@
+
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -110,10 +111,8 @@ export interface Database {
           points_source: Json; // JSONB column
           created_at: string;
           updated_at: string;
-          role: 'Individual' | 'Financial Professional';
-          advisor_code: string | null;
           advisor_id: string | null;
-          report_shared_at: string | null;
+          advisor_code: string | null;
         };
         Insert: { // The data shape needed to insert a new row.
           user_id: string;
@@ -128,10 +127,8 @@ export interface Database {
           points?: number;
           locked_points?: number;
           points_source?: Json;
-          role?: 'Individual' | 'Financial Professional';
-          advisor_code?: string | null;
           advisor_id?: string | null;
-          report_shared_at?: string | null;
+          advisor_code?: string | null;
         };
         Update: { // The data shape needed to update a row.
           name?: string;
@@ -144,10 +141,8 @@ export interface Database {
           locked_points?: number;
           points_source?: Json;
           updated_at?: string;
-          role?: 'Individual' | 'Financial Professional';
-          advisor_code?: string | null;
           advisor_id?: string | null;
-          report_shared_at?: string | null;
+          advisor_code?: string | null;
         };
         Relationships: [
           {
@@ -156,13 +151,6 @@ export interface Database {
             isOneToOne: true;
             referencedRelation: "users";
             referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "app_users_advisor_id_fkey";
-            columns: ["advisor_id"];
-            isOneToOne: false;
-            referencedRelation: "app_users";
-            referencedColumns: ["user_id"];
           }
         ];
       };
