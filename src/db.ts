@@ -45,24 +45,6 @@ function sanitizeForSupabase(obj: any): any {
 
 // --- Data Access Functions ---
 
-const generateClientID = (): string => {
-  const now = new Date();
-  const year = String(now.getFullYear()).slice(-2);
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  // Use a high-res timestamp and a random number to ensure uniqueness without state.
-  const uniquePart = `${now.getTime().toString().slice(-6)}${Math.floor(Math.random() * 10)}`;
-  return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
-};
-
-const generateAdvisorCode = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = 'ADV';
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-}
-
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -76,49 +58,26 @@ export const createNewUserProfile = async (
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
 
-    let advisorUserId: string | null = null;
-    if (role === 'Individual' && advisorCode) {
-        const { data: advisor, error: advisorError } = await supabase
-            .from('app_users')
-            .select('user_id')
-            .eq('advisor_code', advisorCode.trim())
-            .single();
-
-        if (advisor) advisorUserId = advisor.user_id;
-        else console.warn(`Advisor code "${advisorCode}" not found.`, advisorError);
-    }
-
-    const insertData: Database['public']['Tables']['app_users']['Insert'] = {
-        user_id,
-        name,
-        phone_number,
-        client_id: generateClientID(),
-        age,
-        gender,
-        dependents,
-        profession,
-        role,
-        points: 70, // Award initial points for completing sign-up
-        locked_points: 0,
-        points_source: { demographics: true }, // Mark the source of points
-        advisor_id: advisorUserId,
-    };
-
-    if (role === 'Financial Professional') {
-        insertData.advisor_code = generateAdvisorCode();
-    }
-    
-    const { data, error } = await supabase
-        .from('app_users')
-        .insert([insertData])
-        .select()
-        .single();
+    // Call the secure RPC function instead of doing client-side logic
+    const { data, error } = await supabase.rpc('create_new_user_with_advisor', {
+        p_user_id: user_id,
+        p_name: name,
+        p_phone_number: phone_number,
+        p_age: age,
+        p_gender: gender,
+        p_dependents: dependents,
+        p_profession: profession,
+        p_role: role,
+        p_advisor_code: advisorCode,
+    });
         
     if (error) {
-        console.error('Error creating user profile:', error);
+        console.error('Error creating user profile via RPC:', error);
         return null;
     }
-    return data;
+    
+    // The RPC returns the new user profile as JSON
+    return data as UserProfile;
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {

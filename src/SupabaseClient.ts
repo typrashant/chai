@@ -250,10 +250,23 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      // FIX: Define the RPC function signature to ensure correct type inference.
       link_advisor_by_code: {
         Args: {
           advisor_code_to_link: string;
+        };
+        Returns: Json;
+      };
+      create_new_user_with_advisor: {
+        Args: {
+          p_user_id: string;
+          p_name: string;
+          p_phone_number: string;
+          p_age: number;
+          p_gender: string;
+          p_dependents: number;
+          p_profession: string;
+          p_role: string;
+          p_advisor_code?: string | null;
         };
         Returns: Json;
       };
