@@ -4,6 +4,7 @@ import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts'
 
 interface AuthProps {
   onLoginSuccess: (user: UserProfile) => void;
+  initialAdvisorCode?: string | null;
 }
 
 // Logo and Icons can remain as they are, purely presentational.
@@ -31,7 +32,7 @@ const MaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" heigh
 const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>);
 
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
+const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
   const [role, setRole] = useState<'Individual' | 'Financial Professional'>('Individual');
@@ -44,31 +45,9 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [dependents, setDependents] = useState<number>(0);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [advisorCode, setAdvisorCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    // On component mount, check for an advisor code in the URL
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('advisorCode'); // Changed from advisor_code
-      if (code) {
-        setAdvisorCode(code);
-      }
-    } catch (e) {
-      console.error("Could not parse URL params:", e);
-    }
-  }, []);
+  const [advisorCode, setAdvisorCode] = useState<string | null>(initialAdvisorCode);
   
-  const cleanUrl = () => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.has('advisorCode')) {
-        url.searchParams.delete('advisorCode');
-        window.history.replaceState({}, document.title, url.toString());
-    }
-  };
-
   const handleLoginSuccess = (user: UserProfile) => {
-    cleanUrl();
     onLoginSuccess(user);
   };
 

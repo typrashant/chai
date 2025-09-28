@@ -259,6 +259,21 @@ const App = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [clientToView, setClientToView] = useState<UserProfile | null>(null);
   const [clientReportData, setClientReportData] = useState<{ financials: Financials, goals: Goal[], metrics: any } | null>(null);
+  
+  const [advisorCodeFromUrl, setAdvisorCodeFromUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // This effect runs only once on mount to capture the advisor code from the URL.
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('advisorCode');
+    if (code) {
+        setAdvisorCodeFromUrl(code);
+        // Clean the URL immediately after capturing the code
+        const url = new URL(window.location.href);
+        url.searchParams.delete('advisorCode');
+        window.history.replaceState({}, document.title, url.toString());
+    }
+  }, []); // Empty dependency array ensures it runs only once
 
   useEffect(() => {
     if (!supabase) {
@@ -507,9 +522,15 @@ const App = () => {
         .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
   }, [financialHistory, currentUser, goals]);
 
+  const showAuthScreen = !currentUser || (advisorCodeFromUrl && (!currentUser.advisor_code || currentUser.advisor_code !== advisorCodeFromUrl));
+
   if (!isSupabaseConfigured) return <SupabaseConfigError />;
   if (isLoading) return <div className="container" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>;
-  if (!currentUser) return <Auth onLoginSuccess={loadUserAndData} />;
+  
+  if (showAuthScreen) {
+      return <Auth onLoginSuccess={loadUserAndData} initialAdvisorCode={advisorCodeFromUrl} />;
+  }
+
   if (currentUser.role === 'Individual' && !currentUser.persona) return <PersonaQuiz user={currentUser} onQuizComplete={handleQuizComplete} />;
   
   const hasCompleted = (source: keyof typeof REWARD_POINTS) => !!(currentUser.points_source as any)?.[source];
