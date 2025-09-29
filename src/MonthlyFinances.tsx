@@ -47,18 +47,18 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
     }
   };
   
-  // FIX: Cast `item` to `FinancialItem` to ensure type-safe access.
-  const totalMonthlyIncome = useMemo(() => Object.values(income).reduce((sum, item) => {
+  // FIX: Use Object.keys for type-safe reduction to calculate total monthly income.
+  const totalMonthlyIncome = useMemo(() => Object.keys(income).reduce((sum, key) => {
+      const item = income[key as keyof Income];
       if (!item) return sum;
-      const financialItem = item as FinancialItem;
-      return sum + (financialItem.frequency === 'monthly' ? financialItem.value : financialItem.value / 12);
+      return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
   }, 0), [income]);
 
-  // FIX: Cast `item` to `FinancialItem` to ensure type-safe access.
-  const totalMonthlyExpenses = useMemo(() => Object.values(expenses).reduce((sum, item) => {
+  // FIX: Use Object.keys for type-safe reduction to calculate total monthly expenses.
+  const totalMonthlyExpenses = useMemo(() => Object.keys(expenses).reduce((sum, key) => {
+      const item = expenses[key as keyof Expenses];
       if (!item) return sum;
-      const financialItem = item as FinancialItem;
-      return sum + (financialItem.frequency === 'monthly' ? financialItem.value : financialItem.value / 12);
+      return sum + (item.frequency === 'monthly' ? item.value : item.value / 12);
   }, 0), [expenses]);
 
   const monthlySavings = useMemo(() => totalMonthlyIncome - totalMonthlyExpenses, [totalMonthlyIncome, totalMonthlyExpenses]);
@@ -69,8 +69,9 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
       <div className="calculator-sections-container">
         <section>
           <h3>Income</h3>
-          {/* FIX: Refactored to use Object.entries for improved type safety and code clarity. */}
-          {Object.entries(income).map(([key, item]) => {
+          {/* FIX: Use Object.entries for iterating, and cast item to FinancialItem for type safety. */}
+          {Object.entries(income).map(([key, itemValue]) => {
+            const item = itemValue as FinancialItem;
             const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
             return (
               <div key={key} className="form-group-with-frequency">
@@ -85,8 +86,9 @@ const MonthlyFinances: React.FC<MonthlyFinancesProps> = ({ data, onUpdate, onClo
         </section>
         <section>
           <h3>Expenses</h3>
-          {/* FIX: Refactored to use Object.entries for improved type safety and code clarity. */}
-           {Object.entries(expenses).map(([key, item]) => {
+          {/* FIX: Use Object.entries for iterating, and cast item to FinancialItem for type safety. */}
+           {Object.entries(expenses).map(([key, itemValue]) => {
+            const item = itemValue as FinancialItem;
             const label = String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1');
              return (
               <div key={key} className="form-group-with-frequency">

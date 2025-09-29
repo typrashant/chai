@@ -18,7 +18,7 @@ const ProtectionItem = ({ title, score, status }: { title: string; score: number
     </div>
 );
 
-const FinancialProtectionCard = ({ financials, protectionScores, onUpdate, isOpen, onToggle, isCompleted, potentialPoints, isReadOnly }: { financials: Financials; protectionScores: any; onUpdate: (data: Insurance) => void; isOpen: boolean; onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void; isCompleted: boolean; potentialPoints: number; isReadOnly?: boolean; }) => {
+const FinancialProtectionCard = ({ financials, protectionScores, onUpdate, isOpen, onToggle, isCompleted, potentialPoints }: { financials: Financials; protectionScores: any; onUpdate: (data: Insurance) => void; isOpen: boolean; onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void; isCompleted: boolean; potentialPoints: number; }) => {
     const handleInsuranceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         onUpdate({ ...financials.insurance, [id]: Number(value) || 0 });
@@ -42,10 +42,10 @@ const FinancialProtectionCard = ({ financials, protectionScores, onUpdate, isOpe
                  <div className="summary-card-header">
                     <div className="summary-card-title-group">
                         <h2>Financial Protection</h2>
-                        {!isCompleted && !isReadOnly && <div className="potential-points">✨ {potentialPoints} Points</div>}
+                        {!isCompleted && <div className="potential-points">✨ {potentialPoints} Points</div>}
                     </div>
                     <div className="summary-card-controls">
-                        {!isReadOnly && <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>}
+                        <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>
                     </div>
                 </div>
                 {isCompleted && protectionScores ? (

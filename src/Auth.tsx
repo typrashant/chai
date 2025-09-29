@@ -228,40 +228,40 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         );
       case 3:
         return (
-          <form onSubmit={handleDemographicsSubmit}>
-            <h2>A little about you...</h2>
-            <p>This helps us personalize your financial plan.</p>
-             <div className="form-group">
-                <label htmlFor="age">Age</label>
-                <input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g., 28" required />
-              </div>
-            <div className="form-group">
-              <label>Gender</label>
-              <div className="gender-selection">
-                <button type="button" className={`gender-button ${gender === 'Male' ? 'active' : ''}`} onClick={() => setGender('Male')}><MaleIcon /> Male</button>
-                <button type="button" className={`gender-button ${gender === 'Female' ? 'active' : ''}`} onClick={() => setGender('Female')}><FemaleIcon /> Female</button>
-              </div>
-            </div>
-            <div className="form-group">
-                <label>Profession</label>
-                <div className="binary-toggle">
-                    <button type="button" className={profession === 'Salaried' ? 'active' : ''} onClick={() => setProfession('Salaried')}>Salaried</button>
-                    <button type="button" className={profession === 'Self-employed' ? 'active' : ''} onClick={() => setProfession('Self-employed')}>Self-employed</button>
+            <form onSubmit={handleDemographicsSubmit}>
+                <div className="form-group">
+                    <label htmlFor="age">Age</label>
+                    <input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g., 30" required />
                 </div>
-            </div>
-            <div className="form-group">
-              <label>Number of Dependents</label>
-              <div className="dependents-selector">
-                {[0, 1, 2, 3, 4, 5, 6].map(num => (
-                  <button type="button" key={num} className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>{num === 6 ? '6+' : num}</button>
-                ))}
-              </div>
-            </div>
-            {error && <p className="error">{error}</p>}
-            <button className="auth-button" type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Finish Setup'}
-            </button>
-          </form>
+                <div className="form-group">
+                    <label>Gender</label>
+                    <div className="gender-selection">
+                        <button type="button" className={`gender-button ${gender === 'Male' ? 'active' : ''}`} onClick={() => setGender('Male')}><MaleIcon /> Male</button>
+                        <button type="button" className={`gender-button ${gender === 'Female' ? 'active' : ''}`} onClick={() => setGender('Female')}><FemaleIcon /> Female</button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label>Profession</label>
+                    <div className="gender-selection">
+                        <button type="button" className={`gender-button ${profession === 'Salaried' ? 'active' : ''}`} onClick={() => setProfession('Salaried')}>Salaried</button>
+                        <button type="button" className={`gender-button ${profession === 'Self-employed' ? 'active' : ''}`} onClick={() => setProfession('Self-employed')}>Self-employed</button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label>Number of Dependents</label>
+                    <div className="dependents-selector">
+                        {[0, 1, 2, 3, 4].map(num => (
+                            <button key={num} type="button" className={`dependent-button ${dependents === num ? 'active' : ''}`} onClick={() => setDependents(num)}>
+                                {num}{num === 4 ? '+' : ''}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {error && <p className="error">{error}</p>}
+                <button className="auth-button" type="submit" disabled={isLoading}>
+                    {isLoading ? 'Saving...' : 'Finish Setup'}
+                </button>
+            </form>
         );
       default:
         return null;
@@ -273,16 +273,21 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       <Logo />
       <h1 className="auth-title">Smart finance, made simple.</h1>
       <div className="auth-form">
-        {step < 3 && (
-          <>
-            <h2>Welcome to ChAi!</h2>
-            <p>{authMode === 'signup' ? 'Create an account to get started.' : 'Sign in to access your dashboard.'}</p>
-            <div className="auth-toggle">
-              <button className={authMode === 'signup' ? 'active' : ''} onClick={() => { setAuthMode('signup'); resetForm(); }}>Sign Up</button>
-              <button className={authMode === 'signin' ? 'active' : ''} onClick={() => { setAuthMode('signin'); resetForm(); }}>Sign In</button>
-            </div>
-          </>
-        )}
+        <div className="auth-toggle">
+          <button
+            className={authMode === 'signup' ? 'active' : ''}
+            onClick={() => { setAuthMode('signup'); setStep(1); resetForm(); }}
+          >
+            Sign Up
+          </button>
+          <button
+            className={authMode === 'signin' ? 'active' : ''}
+            onClick={() => { setAuthMode('signin'); setStep(1); resetForm(); }}
+          >
+            Sign In
+          </button>
+        </div>
+        <h2>{step === 3 ? 'Just a few details...' : authMode === 'signup' ? 'Create Your Account' : 'Welcome Back'}</h2>
         {renderForm()}
       </div>
     </div>

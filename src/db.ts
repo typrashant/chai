@@ -7,6 +7,10 @@ export type Goal = Database['public']['Tables']['goals']['Row'];
 export type UserAction = Database['public']['Tables']['user_actions']['Row'];
 export type FinancialSnapshot = Database['public']['Tables']['financial_snapshots']['Row'];
 
+// Specific type for the advisor dashboard client list
+export type ClientProfile = Pick<UserProfile, 'user_id' | 'name' | 'phone_number' | 'persona' | 'created_at'>;
+
+
 // The Financials-related interfaces are now imported from the schema definition file.
 // We re-export them here so that component files don't need to change their import source.
 export type { Frequency, FinancialItem, Assets, Liabilities, Income, Expenses, Insurance, Financials } from './SupabaseClient.ts';
@@ -137,11 +141,13 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
     return null;
 }
 
-export const getAdvisorClients = async (advisorId: string): Promise<UserProfile[] | null> => {
+export const getAdvisorClients = async (advisorId: string): Promise<ClientProfile[] | null> => {
     if (!supabase) return null;
+    // By selecting only the required columns, we improve performance and security.
+    // This also prevents potential RLS errors if the policy restricts access to certain columns.
     const { data, error } = await supabase
         .from('app_users')
-        .select('*')
+        .select('user_id, name, phone_number, persona, created_at')
         .eq('advisor_id', advisorId)
         .order('created_at', { ascending: false });
     

@@ -23,7 +23,7 @@ const GoalCoverageRatioBar = ({ label, ratio, status }: { label: string, ratio: 
     );
 };
 
-export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal, onRemoveGoal, isOpen, onToggle, isCompleted, potentialPoints, isReadOnly }: { user: UserProfile, goals: Goal[], goalCoverageRatios: any, onAddGoal: (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => void, onRemoveGoal: (id: string) => void, isOpen: boolean, onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void, isCompleted: boolean, potentialPoints: number, isReadOnly?: boolean }) => {
+export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal, onRemoveGoal, isOpen, onToggle, isCompleted, potentialPoints }: { user: UserProfile, goals: Goal[], goalCoverageRatios: any, onAddGoal: (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => void, onRemoveGoal: (id: string) => void, isOpen: boolean, onToggle: (e: React.MouseEvent<HTMLButtonElement>) => void, isCompleted: boolean, potentialPoints: number }) => {
     const [showFormForAge, setShowFormForAge] = useState<number | null>(null);
     const [newGoalType, setNewGoalType] = useState(GOAL_TYPES[0]);
     const [otherGoalName, setOtherGoalName] = useState('');
@@ -69,9 +69,9 @@ export const FinancialGoalsCard = ({ user, goals, goalCoverageRatios, onAddGoal,
                 <div className="summary-card-header">
                      <div className="summary-card-title-group">
                         <h2>Financial Goals</h2>
-                        {!isCompleted && !isReadOnly && <div className="potential-points">✨ {potentialPoints} Points</div>}
+                        {!isCompleted && <div className="potential-points">✨ {potentialPoints} Points</div>}
                     </div>
-                    {!isReadOnly && <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Add'}</button>}
+                    <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Add'}</button>
                 </div>
                 <div className="goals-summary">
                      {hasGoals && goalCoverageRatios ? (

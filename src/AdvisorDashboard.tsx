@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAdvisorClients, type UserProfile } from './db';
+import { getAdvisorClients, type UserProfile, type ClientProfile } from './db';
 import { CloseIcon } from './icons';
 
 const AdvisorInviteModal = ({ inviteLink, onClose }: { inviteLink: string, onClose: () => void }) => {
@@ -37,7 +37,7 @@ const AdvisorInviteModal = ({ inviteLink, onClose }: { inviteLink: string, onClo
 
 
 const AdvisorDashboard = ({ user }: { user: UserProfile }) => {
-    const [clients, setClients] = useState<UserProfile[] | null>(null);
+    const [clients, setClients] = useState<ClientProfile[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     

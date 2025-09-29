@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 
 const formatCurrency = (value: number) => {
@@ -20,7 +22,7 @@ interface RetirementReadiness {
 }
 
 interface RetirementTrackerProps {
-    retirementReadiness: RetirementReadiness;
+    retirementReadiness?: RetirementReadiness;
 }
 
 const RetirementTracker: React.FC<RetirementTrackerProps> = ({ retirementReadiness }) => {

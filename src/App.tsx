@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -55,6 +56,9 @@ interface Ratios {
     debtToIncomeRatio: Ratio;
     wealthRatio: Ratio;
 }
+
+// Define the type outside the component for a more stable scope.
+type ValidHistoricalRatio = { age: number; ratios: Ratios };
 
 const APP_VERSION = '1.0.2';
 
@@ -423,20 +427,19 @@ const IndividualDashboard = ({
   const metrics = metricsData?.metrics;
   const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
 
-  type ValidHistoricalRatio = { age: number; ratios: Ratios };
   const historicalRatios = useMemo(() => {
     if (!financialHistory || !currentUser || !goals) return [];
-    
+
     return financialHistory
-        .map((snapshot: FinancialSnapshot) => {
-            if (!snapshot.snapshot_data || !snapshot.snapshot_date) return null;
-            const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-            const ageAtSnapshot = (currentUser.age || 0) - yearsAgo;
-            const userAtSnapshotTime: UserProfile = { ...currentUser, age: ageAtSnapshot };
-            const snapshotMetricsData = calculateAllFinancialMetrics(snapshot.snapshot_data, userAtSnapshotTime, goals);
-            return { age: ageAtSnapshot, ratios: snapshotMetricsData?.metrics.healthRatios || null };
-        })
-        .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
+      .map((snapshot: FinancialSnapshot) => {
+        if (!snapshot.snapshot_data || !snapshot.snapshot_date) return null;
+        const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        const ageAtSnapshot = (currentUser.age || 0) - yearsAgo;
+        const userAtSnapshotTime: UserProfile = { ...currentUser, age: ageAtSnapshot };
+        const snapshotMetricsData = calculateAllFinancialMetrics(snapshot.snapshot_data, userAtSnapshotTime, goals);
+        return { age: ageAtSnapshot, ratios: snapshotMetricsData?.metrics.healthRatios || null };
+      })
+      .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
   }, [financialHistory, currentUser, goals]);
 
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
