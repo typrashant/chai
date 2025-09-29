@@ -1,3 +1,5 @@
+
+
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -108,12 +110,9 @@ export interface Database {
           points: number;
           locked_points: number;
           points_source: Json; // JSONB column
+          advisor_id: string | null;
           created_at: string;
           updated_at: string;
-          advisor_id: string | null;
-          advisor_code: string | null;
-          role: 'Individual' | 'Financial Professional';
-          report_shared_at: string | null;
         };
         Insert: { // The data shape needed to insert a new row.
           user_id: string;
@@ -129,9 +128,6 @@ export interface Database {
           locked_points?: number;
           points_source?: Json;
           advisor_id?: string | null;
-          advisor_code?: string | null;
-          role?: 'Individual' | 'Financial Professional';
-          report_shared_at?: string | null;
         };
         Update: { // The data shape needed to update a row.
           name?: string;
@@ -143,11 +139,8 @@ export interface Database {
           points?: number;
           locked_points?: number;
           points_source?: Json;
-          updated_at?: string;
           advisor_id?: string | null;
-          advisor_code?: string | null;
-          role?: 'Individual' | 'Financial Professional';
-          report_shared_at?: string | null;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -250,26 +243,7 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      link_advisor_by_code: {
-        Args: {
-          advisor_code_to_link: string;
-        };
-        Returns: Json;
-      };
-      create_new_user_with_advisor: {
-        Args: {
-          p_user_id: string;
-          p_name: string;
-          p_phone_number: string;
-          p_age: number;
-          p_gender: string;
-          p_dependents: number;
-          p_profession: string;
-          p_role: string;
-          p_advisor_code?: string | null;
-        };
-        Returns: Json;
-      };
+      [_ in never]: never;
     };
     Enums: {
       [_ in never]: never;

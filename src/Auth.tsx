@@ -1,10 +1,11 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
 
 interface AuthProps {
   onLoginSuccess: (user: UserProfile) => void;
-  initialAdvisorCode?: string | null;
 }
 
 // Logo and Icons can remain as they are, purely presentational.
@@ -32,10 +33,9 @@ const MaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" heigh
 const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>);
 
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
+const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
-  const [role, setRole] = useState<'Individual' | 'Financial Professional'>('Individual');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -43,13 +43,29 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
   const [gender, setGender] = useState('');
   const [profession, setProfession] = useState<'Salaried' | 'Self-employed'>('Salaried');
   const [dependents, setDependents] = useState<number>(0);
+  const [advisorId, setAdvisorId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [advisorCode, setAdvisorCode] = useState<string | null>(initialAdvisorCode);
-  
-  const handleLoginSuccess = (user: UserProfile) => {
-    onLoginSuccess(user);
-  };
+
+  useEffect(() => {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('advisor_id');
+        if (id) {
+            setAdvisorId(id);
+            // Store in session storage to persist across reloads during sign-up
+            sessionStorage.setItem('advisor_id', id);
+        } else {
+            // Check session storage as a fallback
+            const storedId = sessionStorage.getItem('advisor_id');
+            if (storedId) {
+                setAdvisorId(storedId);
+            }
+        }
+    } catch (e) {
+        console.error("Error parsing URL parameters:", e);
+    }
+  }, []); // Run only once on component mount
 
   const resetForm = () => {
     setName('');
@@ -109,7 +125,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
     if (session) {
       const existingProfile = await getUserProfile(session.user.id);
       if (existingProfile) {
-        handleLoginSuccess(existingProfile);
+        onLoginSuccess(existingProfile);
       } else {
         // New user, proceed to demographics
         setStep(3);
@@ -145,12 +161,12 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
         gender,
         dependents,
         profession,
-        role,
-        advisorCode // Pass advisor code if it exists
+        advisorId
       );
 
       if (newProfile) {
-        handleLoginSuccess(newProfile);
+        sessionStorage.removeItem('advisor_id'); // Clean up after successful use
+        onLoginSuccess(newProfile);
       } else {
         setError('There was an error creating your profile. Please try again.');
         setIsLoading(false);
@@ -169,19 +185,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, initialAdvisorCode }) => {
         return (
           <form onSubmit={handlePhoneSubmit}>
             {authMode === 'signup' && (
-              <>
-                <div className="form-group">
-                    <label>I am a...</label>
-                    <div className="binary-toggle">
-                        <button type="button" className={role === 'Individual' ? 'active' : ''} onClick={() => setRole('Individual')}>Individual</button>
-                        <button type="button" className={role === 'Financial Professional' ? 'active' : ''} onClick={() => setRole('Financial Professional')}>Financial Professional</button>
-                    </div>
-                </div>
-                <div className="form-group">
-                    <label htmlFor="name">Full Name</label>
-                    <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
-                </div>
-              </>
+              <div className="form-group">
+                <label htmlFor="name">Full Name</label>
+                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
+              </div>
             )}
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>

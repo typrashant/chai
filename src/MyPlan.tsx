@@ -14,7 +14,7 @@ interface MyPlanProps {
     onCompleteAction: (actionId: string) => void;
 }
 
-// FIX: Define a props interface and use React.FC to correctly type the component and its props, resolving errors with the `key` prop.
+// FIX: Define a props interface and use React.FC to correctly type the functional component, resolving issues with special props like 'key'.
 interface ActionCardProps {
     title: string;
     description: string;
@@ -41,7 +41,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ title, description, severity, i
     </div>
 );
 
-// FIX: Define a props interface and use React.FC to correctly type the component and its props, resolving errors with the `key` prop.
+// FIX: Define a props interface and use React.FC to correctly type the functional component, resolving issues with special props like 'key'.
 interface ActionCardInProgressProps {
     title: string;
     targetDate: string;

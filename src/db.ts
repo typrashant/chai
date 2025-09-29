@@ -1,3 +1,5 @@
+
+
 // This file now acts as the data access layer for our Supabase backend.
 import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
 
@@ -45,6 +47,15 @@ function sanitizeForSupabase(obj: any): any {
 
 // --- Data Access Functions ---
 
+const generateClientID = (): string => {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  // Use a high-res timestamp and a random number to ensure uniqueness without state.
+  const uniquePart = `${now.getTime().toString().slice(-6)}${Math.floor(Math.random() * 10)}`;
+  return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
+};
+
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -53,31 +64,46 @@ export const createNewUserProfile = async (
   gender: string,
   dependents: number,
   profession: string,
-  role: 'Individual' | 'Financial Professional',
-  advisorCode?: string | null
+  advisor_id: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
+    const client_id = generateClientID(); 
+    
+    const insertData: Database['public']['Tables']['app_users']['Insert'] = {
+        user_id,
+        name,
+        phone_number,
+        client_id,
+        age,
+        gender,
+        dependents,
+        profession,
+        points: 70, // Award initial points for completing sign-up
+        locked_points: 0,
+        points_source: { demographics: true }, // Mark the source of points
+    };
+    
+    if (advisor_id) {
+        insertData.advisor_id = advisor_id;
+    }
 
-    // Call the secure RPC function instead of doing client-side logic
-    const { data, error } = await supabase.rpc('create_new_user_with_advisor', {
-        p_user_id: user_id,
-        p_name: name,
-        p_phone_number: phone_number,
-        p_age: age,
-        p_gender: gender,
-        p_dependents: dependents,
-        p_profession: profession,
-        p_role: role,
-        p_advisor_code: advisorCode,
-    });
+    const { data, error } = await supabase
+        .from('app_users')
+        .insert([insertData])
+        .select()
+        .single();
         
     if (error) {
-        console.error('Error creating user profile via RPC:', error);
+        console.error('Error creating user profile:', error);
         return null;
     }
+
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
     
-    // The RPC returns the new user profile as JSON
-    return data as UserProfile;
+    return null;
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
@@ -92,66 +118,33 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
         console.error('Error fetching user profile:', error);
         return null;
     }
-    return data;
+    
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
+
+    return null;
 }
-
-export const getAdvisorProfileById = async (advisor_id: string): Promise<{ name: string | null; advisor_code: string | null } | null> => {
-    if (!supabase) return null;
-    const { data, error } = await supabase
-        .from('app_users')
-        .select('name, advisor_code')
-        .eq('user_id', advisor_id)
-        .eq('role', 'Financial Professional')
-        .single();
-
-    if (error) {
-        console.error('Error fetching advisor profile:', error);
-        return null;
-    }
-    return data;
-};
-
-export const getAdvisorClients = async (advisor_id: string): Promise<UserProfile[]> => {
-    if (!supabase) return [];
-    const { data, error } = await supabase
-        .from('app_users')
-        .select('*')
-        .eq('advisor_id', advisor_id);
-
-    if (error) {
-        console.error('Error fetching advisor clients:', error);
-        return [];
-    }
-    return data;
-};
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;
-    // We remove .single() to prevent errors when a new user has no snapshots.
-    // The query now returns an array.
     const { data, error } = await supabase
         .from('financial_snapshots')
-        .select('snapshot_data')
+        .select('snapshot_data') 
         .eq('user_id', user_id)
         .order('snapshot_date', { ascending: false })
-        .limit(1);
+        .limit(1)
+        .single();
 
-    if (error) {
-        // Any database error is a problem.
+    if (error && error.code !== 'PGRST116') {
         console.error('Error fetching latest financial snapshot:', error);
         return null;
     }
     
-    // If data is null, or an empty array, it means no snapshot was found (which is fine for a new user).
-    if (!data || data.length === 0) {
-        return null;
-    }
-    
-    const latestSnapshot = data[0];
-
-    // Check if the snapshot_data property exists and is not null.
-    if (latestSnapshot && 'snapshot_data' in latestSnapshot && latestSnapshot.snapshot_data) {
-      return latestSnapshot.snapshot_data;
+    if (!data) return null;
+    if ('snapshot_data' in data) {
+      return data.snapshot_data;
     }
     
     return null;
@@ -175,25 +168,31 @@ export const getFinancialHistory = async (user_id: string): Promise<FinancialSna
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
     
+    console.log("Attempting to create financial snapshot for user:", user_id);
     const sanitizedFinancials = sanitizeForSupabase(financials);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('financial_snapshots')
         .insert([{
             user_id,
             snapshot_data: sanitizedFinancials as Financials,
-        }]); 
+        }])
+        .select(); 
 
     if (error) {
         console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
+        console.error(`Failed to save financial data: ${error.message}. This could be a database permission (RLS) issue.`);
         return false;
     }
+
+    console.log("Successfully created snapshot:", data);
     return true;
 }
 
 export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    
+    console.log("Attempting to update persona and award points for user:", user_id);
+
     const { data: currentProfile, error: getError } = await supabase
         .from('app_users')
         .select('points, points_source')
@@ -201,7 +200,8 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (getError || !currentProfile) {
-        console.error('Could not fetch user to award points:', getError);
+        console.error('Could not fetch user to award points:', JSON.stringify(getError, null, 2));
+        console.error(`Failed to fetch user profile to save persona: ${getError?.message}.`);
         return null;
     }
     
@@ -226,10 +226,19 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (error) {
-        console.error('Error updating persona and points:', error);
+        console.error('Error updating persona and points:', JSON.stringify(error, null, 2));
+        console.error(`Failed to save persona: ${error.message}. This could be a database permission (RLS) issue.`);
         return null;
     }
-    return data;
+
+    console.log("Successfully updated user profile:", data);
+    
+    if (!data) return null;
+    if ('user_id' in data) {
+        return data;
+    }
+
+    return null;
 }
 
 
@@ -255,7 +264,12 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
         console.error('Error awarding points:', error);
         return null;
     }
-    return data;
+
+    if (data && 'user_id' in data) {
+        return data;
+    }
+    
+    return null;
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
@@ -346,6 +360,7 @@ export const startUserAction = async (user_id: string, action_key: string, targe
         
     if (userError) {
         console.error('Error updating locked points:', userError);
+        // Attempt to roll back action creation? For now, we'll just log.
         return null;
     }
     
@@ -382,48 +397,4 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
     }
     
     return updatedUser;
-};
-
-export const linkAdvisor = async (advisorCode: string): Promise<{ user?: UserProfile | null; error?: string }> => {
-    if (!supabase) return { error: "Database not connected" };
-    if (!advisorCode) return { error: "Advisor code cannot be empty" };
-
-    const { data, error } = await supabase.rpc('link_advisor_by_code', {
-        advisor_code_to_link: advisorCode,
-    });
-
-    if (error) {
-        console.error("Error calling link_advisor_by_code RPC:", error);
-        // Provide a more generic error to the user for security.
-        return { error: "An unexpected error occurred. Please try again." };
-    }
-
-    // The RPC function is designed to return an object with an 'error' key on failure.
-    // FIX: Cast `data` to `any` to safely access the `error` property from the JSON response.
-    if (data && (data as any).error) {
-        console.error("Error from RPC function:", (data as any).error);
-        return { error: (data as any).error };
-    }
-
-    // On success, it returns the updated user profile JSON.
-    return { user: data as UserProfile };
-};
-
-
-export const shareReport = async (userId: string): Promise<{ user?: UserProfile | null; error?: string }> => {
-    if (!supabase) return { error: "Database not connected" };
-
-    const { data: updatedUser, error } = await supabase
-        .from('app_users')
-        .update({ report_shared_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .select()
-        .single();
-        
-    if (error) {
-        console.error('Error sharing report:', error);
-        return { error: "Could not share report. Please try again." };
-    }
-
-    return { user: updatedUser };
 };
