@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import { type UserProfile, type UserAction } from './db.ts';
 import { WarningIcon } from './icons.tsx';
@@ -14,7 +15,6 @@ interface MyPlanProps {
     onCompleteAction: (actionId: string) => void;
 }
 
-// FIX: Define a props interface and use React.FC to correctly type the functional component, resolving issues with special props like 'key'.
 interface ActionCardProps {
     title: string;
     description: string;
@@ -41,7 +41,6 @@ const ActionCard: React.FC<ActionCardProps> = ({ title, description, severity, i
     </div>
 );
 
-// FIX: Define a props interface and use React.FC to correctly type the functional component, resolving issues with special props like 'key'.
 interface ActionCardInProgressProps {
     title: string;
     targetDate: string;

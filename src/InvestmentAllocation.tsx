@@ -14,8 +14,6 @@ const formatInLakhs = (value: number) => {
     return formatCurrency(value);
 };
 
-// FIX: Added 'as (keyof Assets)[]' to each category array to ensure type-safe access
-// to asset properties, resolving potential runtime errors and improving type inference.
 const investmentCategories = {
   equity: ['stocks', 'mutualFunds', 'crypto'] as (keyof Assets)[],
   debt: ['nps', 'ppf', 'pf', 'sukanyaSamriddhi', 'cashInHand', 'savingsAccount', 'recurringDeposit', 'fixedDeposit'] as (keyof Assets)[],
@@ -42,7 +40,7 @@ const investmentLabels: { [K in keyof Assets]?: string } = {
   recurringDeposit: 'RD',
 };
 
-const DonutChart = ({ data, children }: { data: any[], children: React.ReactNode }) => {
+const DonutChart = ({ data, children }: { data: any[], children?: React.ReactNode }) => {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
     let accumulatedPercentage = 0;

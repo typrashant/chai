@@ -3,7 +3,6 @@ import { type Expenses, type FinancialItem } from './db.ts';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
-// FIX: Made the `children` prop optional to resolve a TypeScript error where it was not being correctly inferred.
 const DonutChart = ({ data, children }: { data: any[], children?: React.ReactNode }) => {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
@@ -72,7 +71,6 @@ interface MonthlyCashflowCardProps {
   onToggle: () => void;
   isCompleted: boolean;
   potentialPoints: number;
-  isReadOnly?: boolean;
 }
 
 const needsKeys: (keyof Expenses)[] = ['rent', 'emi', 'utilities', 'societyMaintenance', 'propertyTax', 'groceries', 'transport', 'health', 'education', 'insurancePremiums'];
@@ -89,8 +87,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
     totalAnnualExpenses_AnnualItems,
     onToggle, 
     isCompleted, 
-    potentialPoints,
-    isReadOnly
+    potentialPoints 
 }) => {
     const [viewMode, setViewMode] = useState<'monthly' | 'annually'>('monthly');
     
@@ -180,7 +177,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
             <div className="summary-card-header">
                 <div className="summary-card-title-group">
                     <h2>Income & Expenses</h2>
-                    {!isCompleted && !isReadOnly && <div className="potential-points">✨ {potentialPoints} Points</div>}
+                    {!isCompleted && <div className="potential-points">✨ {potentialPoints} Points</div>}
                 </div>
                  <div className="summary-card-controls">
                     {isCompleted && (
@@ -189,7 +186,7 @@ const MonthlyCashflowCard: React.FC<MonthlyCashflowCardProps> = ({
                             <button className={viewMode === 'annually' ? 'active' : ''} onClick={() => setViewMode('annually')}>Annually</button>
                         </div>
                     )}
-                    {!isReadOnly && <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>}
+                    <button className="update-button" onClick={onToggle}>{isCompleted ? 'Update' : 'Calculate'}</button>
                 </div>
             </div>
 
