@@ -1,10 +1,8 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 import { type UserProfile, type UserAction } from './db.ts';
 import { WarningIcon } from './icons.tsx';
-import ActionDetailModal from './ActionDetailModal.tsx';
+import ActionDetailModal from './ActionDetailModal';
 
 interface MyPlanProps {
     metrics: any;

@@ -1,5 +1,3 @@
-
-
 // This file now acts as the data access layer for our Supabase backend.
 import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
 
@@ -56,6 +54,12 @@ const generateClientID = (): string => {
   return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
+const generateAdvisorCode = (): string => {
+    const prefix = "ADV";
+    const uniquePart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `${prefix}${uniquePart}`;
+}
+
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -64,6 +68,7 @@ export const createNewUserProfile = async (
   gender: string,
   dependents: number,
   profession: string,
+  role: 'Individual' | 'Financial Professional',
   advisor_id: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
@@ -78,6 +83,7 @@ export const createNewUserProfile = async (
         gender,
         dependents,
         profession,
+        role,
         points: 70, // Award initial points for completing sign-up
         locked_points: 0,
         points_source: { demographics: true }, // Mark the source of points
@@ -85,6 +91,10 @@ export const createNewUserProfile = async (
     
     if (advisor_id) {
         insertData.advisor_id = advisor_id;
+    }
+
+    if (role === 'Financial Professional') {
+        insertData.advisor_code = generateAdvisorCode();
     }
 
     const { data, error } = await supabase
@@ -126,6 +136,46 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
 
     return null;
 }
+
+export const getAdvisorClients = async (advisorId: string): Promise<UserProfile[] | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('advisor_id', advisorId)
+        .order('created_at', { ascending: false });
+    
+    if (error) {
+        console.error('Error fetching advisor clients:', error);
+        return null;
+    }
+    return data;
+};
+
+export const linkAdvisorByCode = async (advisorCode: string): Promise<{ success: boolean; message: string }> => {
+    if (!supabase) return { success: false, message: "Database connection not configured." };
+    
+    const { data, error } = await supabase.rpc('link_advisor_by_code', {
+        advisor_code_to_link: advisorCode
+    });
+
+    if (error) {
+        console.error('Error calling link_advisor_by_code RPC:', error);
+        // Provide user-friendly error messages
+        if (error.message.includes("Advisor not found")) {
+            return { success: false, message: "Invalid Advisor Code. Please check and try again." };
+        }
+        if (error.message.includes("User is already linked")) {
+            return { success: false, message: "You are already linked to this advisor." };
+        }
+        return { success: false, message: `An error occurred: ${error.message}` };
+    }
+    
+    // The RPC returns a JSON object with a 'message' field on success
+    // FIX: Cast `data` to `any` to resolve the type error, as the `Json` type doesn't guarantee the `message` property.
+    return { success: true, message: (data as any)?.message || "Successfully linked to advisor." };
+};
+
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;

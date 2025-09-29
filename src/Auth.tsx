@@ -1,14 +1,12 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './SupabaseClient.ts';
 import { createNewUserProfile, getUserProfile, type UserProfile } from './db.ts';
+import { PlanIcon, HomeIcon } from './icons.tsx'; // Assuming icons for roles
 
 interface AuthProps {
   onLoginSuccess: (user: UserProfile) => void;
 }
 
-// Logo and Icons can remain as they are, purely presentational.
 const Logo = () => (
     <svg className="logo-svg" width="50" height="50" viewBox="0 0 50 50" aria-label="ChAi app logo, a steaming cutting chai glass">
         <defs>
@@ -36,6 +34,7 @@ const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" hei
 const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
+  const [role, setRole] = useState<'Individual' | 'Financial Professional'>('Individual');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -161,6 +160,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         gender,
         dependents,
         profession,
+        role,
         advisorId
       );
 
@@ -185,10 +185,19 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         return (
           <form onSubmit={handlePhoneSubmit}>
             {authMode === 'signup' && (
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
-              </div>
+              <>
+                <div className="form-group">
+                    <label>I am a...</label>
+                    <div className="gender-selection">
+                        <button type="button" className={`gender-button ${role === 'Individual' ? 'active' : ''}`} onClick={() => setRole('Individual')}><HomeIcon /> Individual</button>
+                        <button type="button" className={`gender-button ${role === 'Financial Professional' ? 'active' : ''}`} onClick={() => setRole('Financial Professional')}><PlanIcon /> Professional</button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="name">Full Name</label>
+                    <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
+                </div>
+              </>
             )}
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>

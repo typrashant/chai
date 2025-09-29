@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -18,13 +16,14 @@ import { HomeIcon, PlanIcon } from './icons.tsx';
 import MonthlyCashflowCard from './MonthlyCashflowCard.tsx';
 import NetWorthTimeline from './NetWorthTimeline.tsx';
 import FinancialHealthTimeline from './FinancialHealthTimeline.tsx';
+import AdvisorDashboard from './AdvisorDashboard.tsx';
+import LinkAdvisorModal from './LinkAdvisorModal.tsx';
 import {
     type UserProfile,
     type Financials,
     type Goal,
     type Assets,
     type Insurance,
-    type FinancialItem,
     type UserAction,
     type FinancialSnapshot,
     getLatestFinancialSnapshot,
@@ -39,6 +38,7 @@ import {
     getUserActions,
     startUserAction,
     completeUserAction,
+    linkAdvisorByCode,
 } from './db.ts';
 
 type RagStatusHealth = 'green' | 'amber' | 'red';
@@ -56,7 +56,7 @@ interface Ratios {
     wealthRatio: Ratio;
 }
 
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 const REWARD_POINTS = {
     netWorth: 250,
@@ -235,20 +235,16 @@ const SupabaseConfigError = () => (
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  
   const [financials, setFinancials] = useState<Financials | null>(null);
   const [financialHistory, setFinancialHistory] = useState<FinancialSnapshot[] | null>(null);
   const [goals, setGoals] = useState<Goal[] | null>(null);
   const [userActions, setUserActions] = useState<UserAction[] | null>(null);
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNetWorthOpen, setIsNetWorthOpen] = useState(false);
-  const [isNetWorthTimelineOpen, setIsNetWorthTimelineOpen] = useState(false);
-  const [isFinancialHealthTimelineOpen, setIsFinancialHealthTimelineOpen] = useState(false);
-  const [isMonthlyFinancesOpen, setIsMonthlyFinancesOpen] = useState(false);
-  const [isProtectionOpen, setIsProtectionOpen] = useState(false);
-  const [isGoalsOpen, setIsGoalsOpen] = useState(false);
+  const [isLinkAdvisorOpen, setIsLinkAdvisorOpen] = useState(false);
+  
   const [pointsAnimation, setPointsAnimation] = useState<{ x: number; y: number; amount: number; key: number } | null>(null);
-  const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
 
   useEffect(() => {
     if (!supabase) {
@@ -279,16 +275,18 @@ const App = () => {
 
   const loadUserAndData = async (profile: UserProfile) => {
     setCurrentUser(profile);
-    const [fetchedFinancials, fetchedHistory, fetchedGoals, fetchedActions] = await Promise.all([
-        getLatestFinancialSnapshot(profile.user_id),
-        getFinancialHistory(profile.user_id),
-        getUserGoals(profile.user_id),
-        getUserActions(profile.user_id),
-    ]);
-    setFinancials(fetchedFinancials || initialFinancials);
-    setFinancialHistory(fetchedHistory || []);
-    setGoals(fetchedGoals || []);
-    setUserActions(fetchedActions || []);
+    if (profile.role === 'Individual') {
+        const [fetchedFinancials, fetchedHistory, fetchedGoals, fetchedActions] = await Promise.all([
+            getLatestFinancialSnapshot(profile.user_id),
+            getFinancialHistory(profile.user_id),
+            getUserGoals(profile.user_id),
+            getUserActions(profile.user_id),
+        ]);
+        setFinancials(fetchedFinancials || initialFinancials);
+        setFinancialHistory(fetchedHistory || []);
+        setGoals(fetchedGoals || []);
+        setUserActions(fetchedActions || []);
+    }
     setIsLoading(false);
   };
   
@@ -317,20 +315,137 @@ const App = () => {
         setCurrentUser(updatedUser);
     }
   }
+
+  const handleLogout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setFinancials(null);
+    setFinancialHistory(null);
+    setGoals(null);
+    setUserActions(null);
+    setIsProfileOpen(false);
+  };
+
+  const handleLinkAdvisor = async (code: string) => {
+      const result = await linkAdvisorByCode(code);
+      if(result.success) {
+          alert(result.message);
+          // Optionally refetch user profile to show linked status
+          if(currentUser) {
+              const updatedProfile = await getUserProfile(currentUser.user_id);
+              if (updatedProfile) setCurrentUser(updatedProfile);
+          }
+          setIsLinkAdvisorOpen(false);
+      } else {
+          alert(`Error: ${result.message}`);
+      }
+  }
+
+
+  if (!isSupabaseConfigured) {
+      return <SupabaseConfigError />;
+  }
+
+  if (isLoading) {
+    return <div className="container" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>;
+  }
   
+  if (!currentUser) {
+    return <Auth onLoginSuccess={loadUserAndData} />;
+  }
+  
+  if (currentUser.role === 'Individual' && !currentUser.persona) {
+    return <PersonaQuiz user={currentUser} onQuizComplete={handleQuizComplete} />;
+  }
+  
+  return (
+    <div className="container">
+      <header className="header">
+        <Logo />
+        <div className="header-actions">
+            <div className="points-display">
+                ✨ {currentUser.points}
+                {currentUser.role === 'Individual' && (currentUser.locked_points || 0) > 0 && <span className="locked-points"> (+{currentUser.locked_points} 🔒)</span>}
+            </div>
+            <button className="profile-button" onClick={() => setIsProfileOpen(!isProfileOpen)}><ProfileIcon /></button>
+        </div>
+        {isProfileOpen && (
+            <div className="profile-dropdown">
+                <div className="profile-dropdown-item"><span>Name</span><strong>{currentUser.name}</strong></div>
+                <div className="profile-dropdown-item"><span>Phone</span><strong>{currentUser.phone_number}</strong></div>
+                {currentUser.role === 'Individual' && <div className="profile-dropdown-item"><span>Persona</span><strong>{currentUser.persona}</strong></div>}
+                {currentUser.role === 'Financial Professional' && <div className="profile-dropdown-item"><span>Advisor Code</span><strong>{currentUser.advisor_code}</strong></div>}
+                <div className="profile-dropdown-item"><span>Client ID</span><strong>{currentUser.client_id}</strong></div>
+                <div className="profile-dropdown-item"><span>App Version</span><strong>{APP_VERSION}</strong></div>
+                <div className="profile-dropdown-divider"></div>
+                {currentUser.role === 'Individual' && !currentUser.advisor_id && (
+                     <button className="link-advisor-button" onClick={() => { setIsLinkAdvisorOpen(true); setIsProfileOpen(false); }}>Link to Advisor</button>
+                )}
+                <button className="logout-button" onClick={handleLogout}>Logout</button>
+            </div>
+        )}
+      </header>
+      
+      {currentUser.role === 'Financial Professional' ? (
+          <AdvisorDashboard user={currentUser} />
+      ) : (
+          <IndividualDashboard 
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            financials={financials} setFinancials={setFinancials}
+            financialHistory={financialHistory} setFinancialHistory={setFinancialHistory}
+            goals={goals} setGoals={setGoals}
+            userActions={userActions} setUserActions={setUserActions}
+            handleAwardPoints={handleAwardPoints}
+          />
+      )}
+
+      {pointsAnimation && <div key={pointsAnimation.key} className="points-toast" style={{ left: `${pointsAnimation.x}px`, top: `${pointsAnimation.y}px` }}>+ {pointsAnimation.amount} ✨</div>}
+      {isLinkAdvisorOpen && <LinkAdvisorModal onLink={handleLinkAdvisor} onClose={() => setIsLinkAdvisorOpen(false)} />}
+    </div>
+  );
+};
+
+// --- Individual Dashboard Component ---
+const IndividualDashboard = ({
+    currentUser, setCurrentUser, financials, setFinancials, financialHistory, setFinancialHistory, goals, setGoals, userActions, setUserActions, handleAwardPoints
+}: any) => {
+  const [isNetWorthOpen, setIsNetWorthOpen] = useState(false);
+  const [isNetWorthTimelineOpen, setIsNetWorthTimelineOpen] = useState(false);
+  const [isFinancialHealthTimelineOpen, setIsFinancialHealthTimelineOpen] = useState(false);
+  const [isMonthlyFinancesOpen, setIsMonthlyFinancesOpen] = useState(false);
+  const [isProtectionOpen, setIsProtectionOpen] = useState(false);
+  const [isGoalsOpen, setIsGoalsOpen] = useState(false);
+  const [activeView, setActiveView] = useState<'dashboard' | 'plan'>('dashboard');
+
+  const metricsData = useFinancialMetrics(financials, currentUser, goals);
+  const metrics = metricsData?.metrics;
+  const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
+
+  type ValidHistoricalRatio = { age: number; ratios: Ratios };
+  const historicalRatios = useMemo(() => {
+    if (!financialHistory || !currentUser || !goals) return [];
+    
+    return financialHistory
+        .map((snapshot: FinancialSnapshot) => {
+            if (!snapshot.snapshot_data || !snapshot.snapshot_date) return null;
+            const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            const ageAtSnapshot = (currentUser.age || 0) - yearsAgo;
+            const userAtSnapshotTime: UserProfile = { ...currentUser, age: ageAtSnapshot };
+            const snapshotMetricsData = calculateAllFinancialMetrics(snapshot.snapshot_data, userAtSnapshotTime, goals);
+            return { age: ageAtSnapshot, ratios: snapshotMetricsData?.metrics.healthRatios || null };
+        })
+        .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
+  }, [financialHistory, currentUser, goals]);
+
   const handleSaveAndCloseCalculators = async (source: 'netWorth' | 'monthlyFinances', buttonElement: HTMLButtonElement) => {
     if (currentUser && financials) {
         const success = await createFinancialSnapshot(currentUser.user_id, financials);
-        if (!success) return; // Stop if saving failed
-
-        // Refetch data to get the latest snapshot and history
-        const [newLatest, newHistory] = await Promise.all([
-            getLatestFinancialSnapshot(currentUser.user_id),
-            getFinancialHistory(currentUser.user_id)
-        ]);
+        if (!success) return;
+        const [newLatest, newHistory] = await Promise.all([getLatestFinancialSnapshot(currentUser.user_id), getFinancialHistory(currentUser.user_id)]);
         setFinancials(newLatest || initialFinancials);
         setFinancialHistory(newHistory || []);
-
         if (source === 'netWorth') {
             await handleAwardPoints('netWorth', buttonElement, REWARD_POINTS.netWorth);
             setIsNetWorthOpen(false);
@@ -350,10 +465,7 @@ const App = () => {
         if (currentUser && financials) {
             const success = await createFinancialSnapshot(currentUser.user_id, financials);
             if (success) {
-                 const [newLatest, newHistory] = await Promise.all([
-                    getLatestFinancialSnapshot(currentUser.user_id),
-                    getFinancialHistory(currentUser.user_id)
-                ]);
+                 const [newLatest, newHistory] = await Promise.all([ getLatestFinancialSnapshot(currentUser.user_id), getFinancialHistory(currentUser.user_id) ]);
                 setFinancials(newLatest || initialFinancials);
                 setFinancialHistory(newHistory || []);
                 await handleAwardPoints('financialProtection', buttonElement, REWARD_POINTS.financialProtection);
@@ -372,18 +484,14 @@ const App = () => {
   const handleAddGoal = async (goal: Omit<Goal, 'goal_id' | 'user_id' | 'created_at' | 'is_achieved'>) => {
     if(currentUser) {
         const newGoal = await addUserGoal(currentUser.user_id, goal);
-        if(newGoal) {
-            setGoals(prevGoals => [...(prevGoals || []), newGoal]);
-        }
+        if(newGoal) setGoals((prevGoals: Goal[]) => [...(prevGoals || []), newGoal]);
     }
   }
   
   const handleRemoveGoal = async (goalId: string) => {
     if(currentUser) {
         const success = await removeUserGoal(goalId);
-        if(success) {
-            setGoals(prevGoals => (prevGoals || []).filter(g => g.goal_id !== goalId));
-        }
+        if(success) setGoals((prevGoals: Goal[]) => (prevGoals || []).filter(g => g.goal_id !== goalId));
     }
   }
 
@@ -399,16 +507,12 @@ const App = () => {
 
   const handleCompleteAction = async (actionId: string) => {
       if (!currentUser || !userActions || !metricsData?.triggeredActionKeys) return;
-
-      const actionToComplete = userActions.find(a => a.action_id === actionId);
+      const actionToComplete = userActions.find((a: UserAction) => a.action_id === actionId);
       if (!actionToComplete) return;
-
-      // Validation check: an action is considered "complete" if the condition that triggered it is no longer true.
       if (metricsData.triggeredActionKeys.includes(actionToComplete.action_key)) {
           alert("Looks like the condition for this action hasn't been met yet. Please update your financial details if you've made progress, and try again.");
           return;
       }
-
       const updatedUser = await completeUserAction(currentUser.user_id, actionId, currentUser);
       if (updatedUser) {
           setCurrentUser(updatedUser);
@@ -417,176 +521,60 @@ const App = () => {
       }
   };
 
-  const handleLogout = async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-    setFinancials(null);
-    setFinancialHistory(null);
-    setGoals(null);
-    setUserActions(null);
-    setIsProfileOpen(false);
-  };
-
-  const metricsData = useFinancialMetrics(financials, currentUser, goals);
-  const metrics = metricsData?.metrics;
-  const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
-
-  const historicalRatios = useMemo(() => {
-    if (!financialHistory || !currentUser || !goals) return [];
-
-    // Define the type for the object after it has been successfully filtered
-    type ValidHistoricalRatio = { age: number; ratios: Ratios };
-
-    return financialHistory
-        .map(snapshot => {
-            if (!snapshot.snapshot_data || !snapshot.snapshot_date) return null;
-
-            const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-            const ageAtSnapshot = (currentUser.age || 0) - yearsAgo;
-
-            const userAtSnapshotTime: UserProfile = { ...currentUser, age: ageAtSnapshot };
-            const snapshotMetricsData = calculateAllFinancialMetrics(snapshot.snapshot_data, userAtSnapshotTime, goals);
-
-            return {
-                age: ageAtSnapshot,
-                ratios: snapshotMetricsData?.metrics.healthRatios || null
-            };
-        })
-        .filter((m): m is ValidHistoricalRatio => m !== null && m.ratios !== null);
-  }, [financialHistory, currentUser, goals]);
-
-
-  if (!isSupabaseConfigured) {
-      return <SupabaseConfigError />;
-  }
-
-  if (isLoading) {
-    return <div className="container" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>;
-  }
-  
-  if (!currentUser) {
-    return <Auth onLoginSuccess={loadUserAndData} />;
-  }
-  
-  if (!currentUser.persona) {
-    return <PersonaQuiz user={currentUser} onQuizComplete={handleQuizComplete} />;
-  }
-  
   const hasCompleted = (source: keyof typeof REWARD_POINTS) => !!(currentUser.points_source as any)?.[source];
 
   return (
-    <div className="container">
-      <header className="header">
-        <Logo />
-        <div className="header-actions">
-            <div className="points-display">
-                ✨ {currentUser.points}
-                {(currentUser.locked_points || 0) > 0 && <span className="locked-points"> (+{currentUser.locked_points} 🔒)</span>}
-            </div>
-            <button className="profile-button" onClick={() => setIsProfileOpen(!isProfileOpen)}><ProfileIcon /></button>
-        </div>
-        {isProfileOpen && (
-            <div className="profile-dropdown">
-                <div className="profile-dropdown-item"><span>Name</span><strong>{currentUser.name}</strong></div>
-                <div className="profile-dropdown-item"><span>Phone</span><strong>{currentUser.phone_number}</strong></div>
-                <div className="profile-dropdown-item"><span>Persona</span><strong>{currentUser.persona}</strong></div>
-                <div className="profile-dropdown-item"><span>Client ID</span><strong>{currentUser.client_id}</strong></div>
-                <div className="profile-dropdown-item"><span>App Version</span><strong>{APP_VERSION}</strong></div>
-                <div className="profile-dropdown-divider"></div>
-                <button className="logout-button" onClick={handleLogout}>Logout</button>
-            </div>
-        )}
-      </header>
-
-      <main>
-        {activeView === 'dashboard' && financials && goals && metrics && (
-             <>
-                {isFinancialHealthTimelineOpen && currentUser && historicalRatios ? (
-                    <FinancialHealthTimeline historicalRatios={historicalRatios} onBack={() => setIsFinancialHealthTimelineOpen(false)} />
-                ) : isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
-                    <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
-                ) : (
-                    <div className="dashboard-grid">
-                        {isNetWorthOpen ? (
-                            <NetWorthCalculator data={{ assets: financials.assets, liabilities: financials.liabilities }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('netWorth', e.currentTarget)} />
-                        ) : (
-                            <div
-                                className={`card summary-card ${hasCompleted('netWorth') ? 'clickable-card' : ''}`}
-                                role="button"
-                                tabIndex={hasCompleted('netWorth') ? 0 : -1}
-                                onClick={() => hasCompleted('netWorth') && setIsNetWorthTimelineOpen(true)}
-                                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && hasCompleted('netWorth')) setIsNetWorthTimelineOpen(true); }}
-                            >
-                                <div className="summary-card-header">
-                                    <div className="summary-card-title-group">
-                                        <h2>Net Worth</h2>
-                                        {!hasCompleted('netWorth') && <div className="potential-points">✨ {REWARD_POINTS.netWorth} Points</div>}
+      <>
+        <main>
+            {activeView === 'dashboard' && financials && goals && metrics ? (
+                <>
+                    {isFinancialHealthTimelineOpen && currentUser && historicalRatios ? (
+                        <FinancialHealthTimeline historicalRatios={historicalRatios} onBack={() => setIsFinancialHealthTimelineOpen(false)} />
+                    ) : isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
+                        <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
+                    ) : (
+                        <div className="dashboard-grid">
+                            {isNetWorthOpen ? (
+                                <NetWorthCalculator data={{ assets: financials.assets, liabilities: financials.liabilities }} onUpdate={(d: any) => setFinancials((f: any) => ({...f!, ...d}))} onClose={(e: any) => handleSaveAndCloseCalculators('netWorth', e.currentTarget)} />
+                            ) : (
+                                <div className={`card summary-card ${hasCompleted('netWorth') ? 'clickable-card' : ''}`} role="button" tabIndex={hasCompleted('netWorth') ? 0 : -1} onClick={() => hasCompleted('netWorth') && setIsNetWorthTimelineOpen(true)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && hasCompleted('netWorth')) setIsNetWorthTimelineOpen(true); }}>
+                                    <div className="summary-card-header">
+                                        <div className="summary-card-title-group">
+                                            <h2>Net Worth</h2>
+                                            {!hasCompleted('netWorth') && <div className="potential-points">✨ {REWARD_POINTS.netWorth} Points</div>}
+                                        </div>
+                                        <button className="update-button" onClick={(e) => { e.stopPropagation(); setIsNetWorthOpen(true); }}>{hasCompleted('netWorth') ? 'Update' : 'Calculate'}</button>
                                     </div>
-                                    <button className="update-button" onClick={(e) => { e.stopPropagation(); setIsNetWorthOpen(true); }}>
-                                        {hasCompleted('netWorth') ? 'Update' : 'Calculate'}
-                                    </button>
+                                    {hasCompleted('netWorth') ? <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p> : <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>}
                                 </div>
-                                {hasCompleted('netWorth') ? <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p> : <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>}
-                            </div>
-                        )}
-                        
-                        {isMonthlyFinancesOpen ? (
-                            <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
-                        ) : (
-                            <MonthlyCashflowCard
-                                expenses={financials.expenses}
-                                monthlyIncome={metrics.monthlyIncome}
-                                monthlyExpenses={metrics.monthlyExpenses}
-                                monthlySavings={metrics.monthlySavings}
-                                totalMonthlyIncome_MonthlyItems={metrics.totalMonthlyIncome_MonthlyItems}
-                                totalAnnualIncome_AnnualItems={metrics.totalAnnualIncome_AnnualItems}
-                                totalMonthlyExpenses_MonthlyItems={metrics.totalMonthlyExpenses_MonthlyItems}
-                                totalAnnualExpenses_AnnualItems={metrics.totalAnnualExpenses_AnnualItems}
-                                onToggle={() => setIsMonthlyFinancesOpen(true)}
-                                isCompleted={hasCompleted('monthlyFinances')}
-                                potentialPoints={REWARD_POINTS.monthlyFinances}
-                            />
-                        )}
-                        
-                        <FinancialHealthCard ratios={metrics.healthRatios} isClickable={hasCompleted('netWorth') && hasCompleted('monthlyFinances')} onClick={() => hasCompleted('netWorth') && hasCompleted('monthlyFinances') && setIsFinancialHealthTimelineOpen(true)} />
+                            )}
+                            {isMonthlyFinancesOpen ? (
+                                <MonthlyFinances data={{ income: financials.income, expenses: financials.expenses }} onUpdate={(d: any) => setFinancials((f: any) => ({...f!, ...d}))} onClose={(e: any) => handleSaveAndCloseCalculators('monthlyFinances', e.currentTarget)} />
+                            ) : (
+                                <MonthlyCashflowCard expenses={financials.expenses} monthlyIncome={metrics.monthlyIncome} monthlyExpenses={metrics.monthlyExpenses} monthlySavings={metrics.monthlySavings} totalMonthlyIncome_MonthlyItems={metrics.totalMonthlyIncome_MonthlyItems} totalAnnualIncome_AnnualItems={metrics.totalAnnualIncome_AnnualItems} totalMonthlyExpenses_MonthlyItems={metrics.totalMonthlyExpenses_MonthlyItems} totalAnnualExpenses_AnnualItems={metrics.totalAnnualExpenses_AnnualItems} onToggle={() => setIsMonthlyFinancesOpen(true)} isCompleted={hasCompleted('monthlyFinances')} potentialPoints={REWARD_POINTS.monthlyFinances} />
+                            )}
+                            <FinancialHealthCard ratios={metrics.healthRatios} isClickable={hasCompleted('netWorth') && hasCompleted('monthlyFinances')} onClick={() => hasCompleted('netWorth') && hasCompleted('monthlyFinances') && setIsFinancialHealthTimelineOpen(true)} />
+                            <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials((f: any) => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
+                            <PowerOfSavingCard />
+                            <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e: any) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
+                            <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
+                            <InvestmentAllocation assets={financials.assets} />
+                        </div>
+                    )}
+                </>
+            ) : activeView === 'plan' ? (
+                <MyPlan metrics={metrics} user={currentUser} userActions={userActions} triggeredActionKeys={triggeredActionKeys} onStartAction={handleStartAction} onCompleteAction={handleCompleteAction} />
+            ) : null}
+        </main>
+        <nav className="bottom-nav">
+            <div className="bottom-nav-content">
+                <button className={`nav-item ${activeView === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveView('dashboard')}><HomeIcon /><span>Home</span></button>
+                <button className={`nav-item ${activeView === 'plan' ? 'active' : ''}`} onClick={() => setActiveView('plan')}><PlanIcon /><span>My Moves</span></button>
+            </div>
+        </nav>
+      </>
+  )
+}
 
-                        <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
-
-                        <PowerOfSavingCard />
-                        
-                        <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
-
-                        <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
-
-                        <InvestmentAllocation assets={financials.assets} />
-
-                    </div>
-                )}
-            </>
-        )}
-        {activeView === 'plan' && (
-            <MyPlan
-                metrics={metrics}
-                user={currentUser}
-                userActions={userActions}
-                triggeredActionKeys={triggeredActionKeys}
-                onStartAction={handleStartAction}
-                onCompleteAction={handleCompleteAction}
-            />
-        )}
-      </main>
-      
-      {pointsAnimation && <div key={pointsAnimation.key} className="points-toast" style={{ left: `${pointsAnimation.x}px`, top: `${pointsAnimation.y}px` }}>+ {pointsAnimation.amount} ✨</div>}
-      
-      <nav className="bottom-nav">
-          <div className="bottom-nav-content">
-              <button className={`nav-item ${activeView === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveView('dashboard')}><HomeIcon /><span>Home</span></button>
-              <button className={`nav-item ${activeView === 'plan' ? 'active' : ''}`} onClick={() => setActiveView('plan')}><PlanIcon /><span>My Moves</span></button>
-          </div>
-      </nav>
-    </div>
-  );
-};
 
 export default App;
