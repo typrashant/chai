@@ -35,6 +35,7 @@ const FemaleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" hei
 const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Demographics
+  const [isAdvisor, setIsAdvisor] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -114,8 +115,19 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       if (existingProfile) {
         onLoginSuccess(existingProfile);
       } else {
-        // New user, proceed to demographics
-        setStep(3);
+        // New user
+        if (isAdvisor && authMode === 'signup') {
+            const newProfile = await createNewUserProfile(session.user.id, name, `+91${phone}`, true);
+            if(newProfile) {
+                onLoginSuccess(newProfile);
+            } else {
+                setError('Could not create advisor profile. Please try again.');
+                setStep(1);
+            }
+        } else {
+            // New personal user, proceed to demographics
+            setStep(3);
+        }
       }
     }
     setIsLoading(false);
@@ -144,6 +156,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         user.id,
         name,
         `+91${phone}`,
+        false, // Is not an advisor
         Number(age),
         gender,
         dependents,
@@ -170,11 +183,20 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       case 1:
         return (
           <form onSubmit={handlePhoneSubmit}>
-            {authMode === 'signup' && (
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
-                <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Ananya Sharma" required />
-              </div>
+             {authMode === 'signup' && (
+              <>
+                 <div className="form-group">
+                    <label>I am a...</label>
+                    <div className="binary-toggle">
+                        <button type="button" className={!isAdvisor ? 'active' : ''} onClick={() => setIsAdvisor(false)}>Personal User</button>
+                        <button type="button" className={isAdvisor ? 'active' : ''} onClick={() => setIsAdvisor(true)}>Financial Advisor</button>
+                    </div>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="name">Full Name</label>
+                    <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={isAdvisor ? "e.g., Ramesh Kumar" : "e.g., Ananya Sharma"} required />
+                </div>
+              </>
             )}
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>

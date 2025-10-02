@@ -1,3 +1,5 @@
+
+
 // This file now acts as the data access layer for our Supabase backend.
 // FIX: Import `FinancialItem` to make it available within this module.
 import { supabase, type Database, type Financials, type Json, type FinancialItem, type Assets, type Liabilities } from './SupabaseClient.ts';
@@ -55,64 +57,102 @@ const generateClientID = (): string => {
   return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
+const generateAdvisorCode = (): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
   phone_number: string,
-  age: number,
-  gender: string,
-  dependents: number,
-  profession: string,
-  advisor_code: string | null
+  is_advisor: boolean,
+  age?: number,
+  gender?: string,
+  dependents?: number,
+  profession?: string,
+  advisor_code_from_url?: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    
-    let linked_advisor_id: string | null = null;
-    if (advisor_code) {
-        const { data: advisor, error: advisorError } = await supabase
+
+    if (is_advisor) {
+        // Create an advisor profile
+        const advisor_code = generateAdvisorCode();
+        const { data, error } = await supabase
             .from('app_users')
-            .select('user_id')
-            .eq('advisor_code', advisor_code)
-            .eq('is_advisor', true)
+            .insert([{
+                user_id,
+                name,
+                phone_number,
+                is_advisor: true,
+                advisor_code: advisor_code,
+                client_id: `ADV-${advisor_code}`,
+                points: 0,
+                locked_points: 0,
+                points_source: {},
+                // FIX: The 'age' column is non-nullable, but not collected for advisor sign-ups.
+                // Providing a default value of 0 to satisfy the database constraint.
+                age: 0,
+            }])
+            .select()
             .single();
-        if (advisor) {
-            linked_advisor_id = advisor.user_id;
-        } else {
-            console.warn("Advisor code provided but not found:", advisor_code);
+
+        if (error) {
+            console.error('Error creating advisor profile:', error);
+            if (error.message.includes('duplicate key value violates unique constraint')) {
+                return createNewUserProfile(user_id, name, phone_number, is_advisor);
+            }
+            return null;
         }
-    }
+        return data;
 
-    const client_id = generateClientID(); 
-    const { data, error } = await supabase
-        .from('app_users')
-        .insert([{
-            user_id,
-            name,
-            phone_number,
-            client_id,
-            age,
-            gender,
-            dependents,
-            profession,
-            points: 70, // Award initial points for completing sign-up
-            locked_points: 0,
-            points_source: { demographics: true }, // Mark the source of points
-            linked_advisor_id,
-        }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error('Error creating user profile:', error);
-        return null;
-    }
+    } else { // Create a personal user profile
+        let linked_advisor_id: string | null = null;
+        if (advisor_code_from_url) {
+            const { data: advisor } = await supabase
+                .from('app_users')
+                .select('user_id')
+                .eq('advisor_code', advisor_code_from_url)
+                .eq('is_advisor', true)
+                .single();
+            if (advisor) {
+                linked_advisor_id = advisor.user_id;
+            } else {
+                console.warn("Advisor code provided but not found:", advisor_code_from_url);
+            }
+        }
 
-    if (!data) return null;
-    if ('user_id' in data) {
+        const client_id = generateClientID();
+        const { data, error } = await supabase
+            .from('app_users')
+            .insert([{
+                user_id,
+                name,
+                phone_number,
+                client_id,
+                age,
+                gender,
+                dependents,
+                profession,
+                points: 70,
+                locked_points: 0,
+                points_source: { demographics: true },
+                linked_advisor_id,
+                is_advisor: false,
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('Error creating user profile:', error);
+            return null;
+        }
         return data;
     }
-    
-    return null;
 }
 
 export const getUserProfile = async (user_id: string): Promise<UserProfile | null> => {
