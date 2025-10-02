@@ -1,15 +1,12 @@
 // This file now acts as the data access layer for our Supabase backend.
-import { supabase, type Database, type Financials, type Json } from './SupabaseClient.ts';
+// FIX: Import `FinancialItem` to make it available within this module.
+import { supabase, type Database, type Financials, type Json, type FinancialItem, type Assets, type Liabilities } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
 export type UserProfile = Database['public']['Tables']['app_users']['Row'];
 export type Goal = Database['public']['Tables']['goals']['Row'];
 export type UserAction = Database['public']['Tables']['user_actions']['Row'];
 export type FinancialSnapshot = Database['public']['Tables']['financial_snapshots']['Row'];
-
-// Specific type for the advisor dashboard client list
-export type ClientProfile = Pick<UserProfile, 'user_id' | 'name' | 'phone_number' | 'persona' | 'created_at'>;
-
 
 // The Financials-related interfaces are now imported from the schema definition file.
 // We re-export them here so that component files don't need to change their import source.
@@ -58,12 +55,6 @@ const generateClientID = (): string => {
   return `IN${year}${month}${uniquePart.padStart(7, '0')}`;
 };
 
-const generateAdvisorCode = (): string => {
-    const prefix = "ADV";
-    const uniquePart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `${prefix}${uniquePart}`;
-}
-
 export const createNewUserProfile = async (
   user_id: string,
   name: string,
@@ -72,38 +63,42 @@ export const createNewUserProfile = async (
   gender: string,
   dependents: number,
   profession: string,
-  role: 'Individual' | 'Financial Professional',
-  advisor_id: string | null
+  advisor_code: string | null
 ): Promise<UserProfile | null> => {
     if (!supabase) return null;
+    
+    let linked_advisor_id: string | null = null;
+    if (advisor_code) {
+        const { data: advisor, error: advisorError } = await supabase
+            .from('app_users')
+            .select('user_id')
+            .eq('advisor_code', advisor_code)
+            .eq('is_advisor', true)
+            .single();
+        if (advisor) {
+            linked_advisor_id = advisor.user_id;
+        } else {
+            console.warn("Advisor code provided but not found:", advisor_code);
+        }
+    }
+
     const client_id = generateClientID(); 
-    
-    const insertData: Database['public']['Tables']['app_users']['Insert'] = {
-        user_id,
-        name,
-        phone_number,
-        client_id,
-        age,
-        gender,
-        dependents,
-        profession,
-        role,
-        points: 70, // Award initial points for completing sign-up
-        locked_points: 0,
-        points_source: { demographics: true }, // Mark the source of points
-    };
-    
-    if (advisor_id) {
-        insertData.advisor_id = advisor_id;
-    }
-
-    if (role === 'Financial Professional') {
-        insertData.advisor_code = generateAdvisorCode();
-    }
-
     const { data, error } = await supabase
         .from('app_users')
-        .insert([insertData])
+        .insert([{
+            user_id,
+            name,
+            phone_number,
+            client_id,
+            age,
+            gender,
+            dependents,
+            profession,
+            points: 70, // Award initial points for completing sign-up
+            locked_points: 0,
+            points_source: { demographics: true }, // Mark the source of points
+            linked_advisor_id,
+        }])
         .select()
         .single();
         
@@ -140,48 +135,6 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
 
     return null;
 }
-
-export const getAdvisorClients = async (advisorId: string): Promise<ClientProfile[] | null> => {
-    if (!supabase) return null;
-    // By selecting only the required columns, we improve performance and security.
-    // This also prevents potential RLS errors if the policy restricts access to certain columns.
-    const { data, error } = await supabase
-        .from('app_users')
-        .select('user_id, name, phone_number, persona, created_at')
-        .eq('advisor_id', advisorId)
-        .order('created_at', { ascending: false });
-    
-    if (error) {
-        console.error('Error fetching advisor clients:', error);
-        return null;
-    }
-    return data;
-};
-
-export const linkAdvisorByCode = async (advisorCode: string): Promise<{ success: boolean; message: string }> => {
-    if (!supabase) return { success: false, message: "Database connection not configured." };
-    
-    const { data, error } = await supabase.rpc('link_advisor_by_code', {
-        advisor_code_to_link: advisorCode
-    });
-
-    if (error) {
-        console.error('Error calling link_advisor_by_code RPC:', error);
-        // Provide user-friendly error messages
-        if (error.message.includes("Advisor not found")) {
-            return { success: false, message: "Invalid Advisor Code. Please check and try again." };
-        }
-        if (error.message.includes("User is already linked")) {
-            return { success: false, message: "You are already linked to this advisor." };
-        }
-        return { success: false, message: `An error occurred: ${error.message}` };
-    }
-    
-    // The RPC returns a JSON object with a 'message' field on success
-    // FIX: Cast `data` to `any` to resolve the type error, as the `Json` type doesn't guarantee the `message` property.
-    return { success: true, message: (data as any)?.message || "Successfully linked to advisor." };
-};
-
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
     if (!supabase) return null;
@@ -454,3 +407,140 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
     
     return updatedUser;
 };
+
+// --- Advisor Functions ---
+
+export const linkToAdvisor = async (user_id: string, advisor_code: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data: advisor, error: advisorError } = await supabase
+        .from('app_users')
+        .select('user_id')
+        .eq('advisor_code', advisor_code)
+        .eq('is_advisor', true)
+        .single();
+
+    if (advisorError || !advisor) {
+        console.error('Advisor not found for code:', advisor_code, advisorError);
+        return null;
+    }
+
+    const { data: updatedUser, error: linkError } = await supabase
+        .from('app_users')
+        .update({ linked_advisor_id: advisor.user_id })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+
+    if (linkError) {
+        console.error('Error linking user to advisor:', linkError);
+        return null;
+    }
+    return updatedUser;
+}
+
+export const removeAdvisorLink = async (user_id: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data: updatedUser, error } = await supabase
+        .from('app_users')
+        .update({ linked_advisor_id: null, report_shared_at: null }) // Also reset share status
+        .eq('user_id', user_id)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error('Error removing advisor link:', error);
+        return null;
+    }
+    return updatedUser;
+}
+
+export const shareReportWithAdvisor = async (user_id: string): Promise<UserProfile | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+        .from('app_users')
+        .update({ report_shared_at: new Date().toISOString() })
+        .eq('user_id', user_id)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error('Error sharing report:', error);
+        return null;
+    }
+    return data;
+}
+
+export const getAdvisorById = async (advisor_id: string): Promise<UserProfile | null> => {
+    return getUserProfile(advisor_id);
+}
+
+// FIX: Update function signature to reflect the added `completion` and `netWorth` properties.
+export const getAdvisorClientsWithStats = async (advisor_id: string): Promise<{clients: (UserProfile & { completion: number; netWorth: number; })[], stats: any}> => {
+    if (!supabase) return { clients: [], stats: {} };
+    // In a real app, this would be a single RPC call for performance.
+    // Here, we'll fetch clients, then loop to get their latest snapshot for stats.
+    
+    const { data: clients, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('linked_advisor_id', advisor_id);
+    
+    if (error || !clients) {
+        console.error("Error fetching advisor's clients", error);
+        return { clients: [], stats: {} };
+    }
+
+    let netWorthCalculated = 0;
+    let cashflowAdded = 0;
+    let planningCompleted = 0;
+
+    const clientsWithCompletion = await Promise.all(clients.map(async (client) => {
+        const { data: snapshot, error: snapErr } = await supabase
+            .from('financial_snapshots')
+            .select('snapshot_data')
+            .eq('user_id', client.user_id)
+            .limit(1);
+        
+        const { data: goals, error: goalErr } = await supabase
+            .from('goals')
+            .select('goal_id')
+            .eq('user_id', client.user_id)
+            .limit(1);
+
+        let completion = 0;
+        const hasPersona = !!client.persona;
+        // FIX: Use `Number(v)` to safely cast `unknown` to `number` for comparison.
+        const hasNetWorth = snapshot && snapshot[0]?.snapshot_data?.assets && Object.values(snapshot[0]?.snapshot_data.assets).some(v => Number(v) > 0);
+        // FIX: `FinancialItem` is now in scope due to the import fix.
+        const hasCashflow = snapshot && snapshot[0]?.snapshot_data?.income && Object.values(snapshot[0]?.snapshot_data.income).some(item => (item as FinancialItem).value > 0);
+        // FIX: Use `Number(v)` to safely cast `unknown` to `number` for comparison.
+        const hasInsurance = snapshot && snapshot[0]?.snapshot_data?.insurance && Object.values(snapshot[0]?.snapshot_data.insurance).some(v => Number(v) > 0);
+        const hasGoal = goals && goals.length > 0;
+        
+        if (hasPersona) completion += 20;
+        if (hasNetWorth) { completion += 20; netWorthCalculated++; }
+        if (hasCashflow) { completion += 20; cashflowAdded++; }
+        if (hasInsurance) completion += 20;
+        if (hasGoal) completion += 20;
+
+        if (completion === 100) planningCompleted++;
+        
+        // FIX: Safely access snapshot data and use `Object.keys` in reduce to prevent type errors.
+        const snapshotData = snapshot?.[0]?.snapshot_data;
+        const netWorthValue = (hasNetWorth && snapshotData)
+            ? Object.keys(snapshotData.assets).reduce((s, k) => s + Number(snapshotData.assets[k as keyof Assets] || 0), 0) -
+              Object.keys(snapshotData.liabilities || {}).reduce((s, k) => s + Number((snapshotData.liabilities || {})[k as keyof Liabilities] || 0), 0)
+            : 0;
+
+        return { ...client, completion, netWorth: netWorthValue };
+    }));
+    
+    const stats = {
+        totalClients: clients.length,
+        netWorthCalculated,
+        cashflowAdded,
+        planningCompleted
+    };
+
+    return { clients: clientsWithCompletion, stats };
+}

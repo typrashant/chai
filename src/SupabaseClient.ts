@@ -1,3 +1,4 @@
+
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -110,9 +111,9 @@ export interface Database {
           points_source: Json; // JSONB column
           created_at: string;
           updated_at: string;
-          advisor_id: string | null;
+          is_advisor: boolean;
           advisor_code: string | null;
-          role: 'Individual' | 'Financial Professional';
+          linked_advisor_id: string | null;
           report_shared_at: string | null;
         };
         Insert: { // The data shape needed to insert a new row.
@@ -128,9 +129,9 @@ export interface Database {
           points?: number;
           locked_points?: number;
           points_source?: Json;
-          advisor_id?: string | null;
+          is_advisor?: boolean;
           advisor_code?: string | null;
-          role?: 'Individual' | 'Financial Professional';
+          linked_advisor_id?: string | null;
           report_shared_at?: string | null;
         };
         Update: { // The data shape needed to update a row.
@@ -144,9 +145,7 @@ export interface Database {
           locked_points?: number;
           points_source?: Json;
           updated_at?: string;
-          advisor_id?: string | null;
-          advisor_code?: string | null;
-          role?: 'Individual' | 'Financial Professional';
+          linked_advisor_id?: string | null;
           report_shared_at?: string | null;
         };
         Relationships: [
@@ -156,6 +155,13 @@ export interface Database {
             isOneToOne: true;
             referencedRelation: "users";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "app_users_linked_advisor_id_fkey";
+            columns: ["linked_advisor_id"];
+            isOneToOne: false;
+            referencedRelation: "app_users";
+            referencedColumns: ["user_id"];
           }
         ];
       };
@@ -250,12 +256,7 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      link_advisor_by_code: {
-        Args: {
-          advisor_code_to_link: string;
-        };
-        Returns: Json;
-      };
+      [_ in never]: never;
     };
     Enums: {
       [_ in never]: never;

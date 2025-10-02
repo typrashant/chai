@@ -1,99 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import { getAdvisorClients, type UserProfile, type ClientProfile } from './db';
-import { CloseIcon } from './icons';
 
-const AdvisorInviteModal = ({ inviteLink, onClose }: { inviteLink: string, onClose: () => void }) => {
-    const [copied, setCopied] = useState(false);
+import React, { useState, useEffect, useMemo } from 'react';
+import { type UserProfile } from './db.ts';
+import { getAdvisorClientsWithStats, getLatestFinancialSnapshot, getUserGoals, type Financials, type Goal } from './db.ts';
+import InviteClientModal from './InviteClientModal.tsx';
+import ClientReportModal from './ClientReportModal.tsx';
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
-    };
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Invite a New Client</h2>
-                    <button className="modal-close-button" onClick={onClose}><CloseIcon /></button>
-                </div>
-                <div className="modal-body">
-                    <p>Share this unique link with your clients to onboard them. Their profile will automatically be linked to your dashboard.</p>
-                    <div className="form-group">
-                        <label htmlFor="invite-link">Your Invite Link</label>
-                        <input id="invite-link" type="text" readOnly value={inviteLink} />
-                    </div>
-                </div>
-                <div className="modal-footer" style={{paddingTop: '0.5rem'}}>
-                     <button className="action-button-primary" style={{width: '100%'}} onClick={handleCopy}>
-                        {copied ? 'Copied!' : 'Copy Link'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
+const KPICard = ({ title, value }: { title: string; value: string | number }) => (
+    <div className="kpi-card">
+        <h3>{title}</h3>
+        <p className="value">{value}</p>
+    </div>
+);
 
-
-const AdvisorDashboard = ({ user }: { user: UserProfile }) => {
-    const [clients, setClients] = useState<ClientProfile[] | null>(null);
+const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogout: () => void }) => {
+    const [clients, setClients] = useState<(UserProfile & { completion: number; netWorth: number })[]>([]);
+    const [stats, setStats] = useState({ totalClients: 0, netWorthCalculated: 0, cashflowAdded: 0, planningCompleted: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-    
+    const [selectedClient, setSelectedClient] = useState<UserProfile | null>(null);
+    const [clientFinancials, setClientFinancials] = useState<Financials | null>(null);
+    const [clientGoals, setClientGoals] = useState<Goal[] | null>(null);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({
+        completion: 'all',
+        regDateStart: '',
+        regDateEnd: '',
+        netWorthMin: '',
+        netWorthMax: '',
+        ageMin: '',
+        ageMax: '',
+    });
+
     useEffect(() => {
-        const fetchClients = async () => {
-            const fetchedClients = await getAdvisorClients(user.user_id);
+        const fetchData = async () => {
+            setIsLoading(true);
+            const { clients: fetchedClients, stats: fetchedStats } = await getAdvisorClientsWithStats(advisor.user_id);
             setClients(fetchedClients);
+            setStats(fetchedStats);
             setIsLoading(false);
         };
-        fetchClients();
-    }, [user.user_id]);
+        fetchData();
+    }, [advisor.user_id]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const filteredClients = useMemo(() => {
+        return clients.filter(client => {
+            // Search
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = client.name.toLowerCase().includes(searchLower) || client.phone_number.includes(searchLower);
+
+            // Completion Filter
+            let matchesCompletion = true;
+            if (filters.completion !== 'all') {
+                if (filters.completion === 'completed') matchesCompletion = client.completion === 100;
+                else if (filters.completion === 'in-progress') matchesCompletion = client.completion > 0 && client.completion < 100;
+                else if (filters.completion === 'not-started') matchesCompletion = client.completion === 0;
+            }
+
+            // Other filters
+            const matchesRegDate = (!filters.regDateStart || new Date(client.created_at) >= new Date(filters.regDateStart)) && (!filters.regDateEnd || new Date(client.created_at) <= new Date(filters.regDateEnd));
+            const matchesNetWorth = (!filters.netWorthMin || client.netWorth >= Number(filters.netWorthMin)) && (!filters.netWorthMax || client.netWorth <= Number(filters.netWorthMax));
+            const matchesAge = (!filters.ageMin || client.age >= Number(filters.ageMin)) && (!filters.ageMax || client.age <= Number(filters.ageMax));
+
+            return matchesSearch && matchesCompletion && matchesRegDate && matchesNetWorth && matchesAge;
+        });
+    }, [clients, searchTerm, filters]);
     
-    const inviteLink = `${window.location.origin}?advisor_id=${user.user_id}`;
+    const handleViewReport = async (client: UserProfile) => {
+        setSelectedClient(client);
+        const [financials, goals] = await Promise.all([
+            getLatestFinancialSnapshot(client.user_id),
+            getUserGoals(client.user_id)
+        ]);
+        setClientFinancials(financials);
+        setClientGoals(goals);
+    }
+    
+    if (isLoading) {
+        return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading Advisor Dashboard...</div>;
+    }
 
     return (
-        <main className="advisor-dashboard">
-            <div className="advisor-header">
-                <h1>Client Dashboard</h1>
-                <button className="action-button-primary" onClick={() => setIsInviteModalOpen(true)}>Invite Client</button>
+        <div className="advisor-dashboard">
+            <div className="kpi-grid">
+                <KPICard title="Total Clients" value={stats.totalClients} />
+                <KPICard title="Net Worth Calculated" value={stats.netWorthCalculated} />
+                <KPICard title="Cash Flow Added" value={stats.cashflowAdded} />
+                <KPICard title="Planning Completed" value={stats.planningCompleted} />
             </div>
 
-            <div className="client-list-container">
-                {isLoading ? (
-                    <p>Loading clients...</p>
-                ) : !clients || clients.length === 0 ? (
-                    <div className="summary-placeholder" style={{padding: '3rem'}}>
-                        <p>You haven't invited any clients yet. Click "Invite Client" to get started.</p>
+            <div className="client-management-section">
+                <div className="client-controls-header">
+                    <h2>Client Management</h2>
+                    <button className="done-button" onClick={() => setIsInviteModalOpen(true)}>Invite New Client</button>
+                </div>
+
+                <div className="client-filters">
+                    <input type="text" placeholder="Search by name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <div className="form-group">
+                        <label htmlFor="completion">Status</label>
+                        <select id="completion" name="completion" value={filters.completion} onChange={handleFilterChange}>
+                            <option value="all">All Statuses</option>
+                            <option value="completed">Completed</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="not-started">Not Started</option>
+                        </select>
                     </div>
-                ) : (
-                    <div className="table-wrapper">
-                        <table className="goal-summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Client Name</th>
-                                    <th>Phone</th>
-                                    <th>Persona</th>
-                                    <th>Joined On</th>
+                </div>
+                 <div className="table-wrapper">
+                    <table className="client-list-table">
+                        <thead>
+                            <tr>
+                                <th>Client Name</th>
+                                <th>Completion</th>
+                                <th>Report</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredClients.map(client => (
+                                <tr key={client.user_id}>
+                                    <td>
+                                        <div className="client-info">
+                                            <span>{client.name}</span>
+                                            <span>{client.phone_number}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="completion-bar-container">
+                                            <div className="completion-bar"><div className="completion-bar-inner" style={{ width: `${client.completion}%` }}></div></div>
+                                            <span>{client.completion}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {client.report_shared_at ? (
+                                            <button className="update-button view-report-btn" onClick={() => handleViewReport(client)}>View Report</button>
+                                        ) : (
+                                            <span className="report-not-shared">Not Shared</span>
+                                        )}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {clients.map(client => (
-                                    <tr key={client.user_id}>
-                                        <td>{client.name}</td>
-                                        <td>{client.phone_number}</td>
-                                        <td>{client.persona || 'N/A'}</td>
-                                        <td>{new Date(client.created_at).toLocaleDateString('en-IN')}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            
-            {isInviteModalOpen && <AdvisorInviteModal inviteLink={inviteLink} onClose={() => setIsInviteModalOpen(false)} />}
-        </main>
+
+            {isInviteModalOpen && <InviteClientModal advisorCode={advisor.advisor_code || ''} onClose={() => setIsInviteModalOpen(false)} />}
+            {selectedClient && clientFinancials && clientGoals && (
+                <ClientReportModal 
+                    client={selectedClient} 
+                    financials={clientFinancials}
+                    goals={clientGoals}
+                    onClose={() => setSelectedClient(null)} 
+                />
+            )}
+        </div>
     );
 };
 

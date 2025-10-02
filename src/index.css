@@ -1,3 +1,5 @@
+
+
 :root {
   /* New Dark Mode Palette */
   --primary-color: #F59E0B; /* amber-500 */
@@ -19,6 +21,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -43,6 +49,7 @@ body {
   transition: box-shadow 0.3s ease-in-out;
   border: 1px solid var(--border-color);
   padding: 1rem;
+  position: relative;
 }
 
 .container:hover {
@@ -190,7 +197,7 @@ main {
     border: 1px solid var(--border-color);
     box-shadow: 0 5px 15px var(--shadow-color);
     width: 280px;
-    z-index: 10;
+    z-index: 20;
     padding: 0.5rem;
     animation: fadeIn 0.2s ease-out;
 }
@@ -218,11 +225,77 @@ main {
     margin: 0.5rem 0;
 }
 
-.link-advisor-button, .logout-button {
+.advisor-link-section {
+    padding: 0.75rem 0.5rem 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.advisor-link-section label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.advisor-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+.advisor-input-group input {
+    flex-grow: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+.advisor-input-group button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-gradient);
+    color: white;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.advisor-input-group button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.advisor-code-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.remove-advisor-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-color-light);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.remove-advisor-btn:hover {
+    background-color: rgba(248, 113, 113, 0.1);
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.logout-button {
     width: 100%;
     padding: 0.75rem 0.5rem;
     background: none;
     border: none;
+    color: var(--red);
     font-family: 'Poppins', sans-serif;
     font-size: 0.9rem;
     font-weight: 600;
@@ -230,18 +303,6 @@ main {
     cursor: pointer;
     border-radius: 8px;
     transition: background-color 0.2s;
-}
-
-.link-advisor-button {
-    color: var(--primary-color-light);
-    margin-bottom: 0.25rem;
-}
-.link-advisor-button:hover {
-    background-color: rgba(245, 158, 11, 0.1);
-}
-
-.logout-button {
-    color: var(--red);
 }
 .logout-button:hover {
     background-color: rgba(248, 113, 113, 0.1);
@@ -1299,7 +1360,7 @@ main {
     border-collapse: collapse;
 }
 .goal-summary-table th, .goal-summary-table td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     font-size: 0.8rem;
@@ -1531,6 +1592,7 @@ main {
     border: none;
     color: var(--text-color-light);
     cursor: pointer;
+    padding: 0;
 }
 .modal-body {
     display: flex;
@@ -1557,6 +1619,12 @@ main {
 .modal-footer {
     border-top: 1px solid var(--border-color);
     padding-top: 1.5rem;
+}
+.share-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
 }
 .start-action-section h3 {
     display: flex;
@@ -1934,25 +2002,235 @@ main {
     font-size: 0.75rem;
 }
 
-/* Advisor Dashboard */
+/* --- ADVISOR DASHBOARD STYLES --- */
 .advisor-dashboard {
-    padding: 1rem 0;
+  padding: 1rem 0;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.kpi-card {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+}
+.kpi-card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-color-light);
+  margin-bottom: 0.5rem;
+}
+.kpi-card .value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.client-management-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.client-controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.client-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.client-filters .form-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+.client-filters .form-group label {
+    flex-shrink: 0;
+}
+.client-filters input, .client-filters select {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+}
+.client-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.client-list-table th, .client-list-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.client-list-table th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-color-light);
+}
+.client-info span {
+  display: block;
+}
+.client-info span:last-child {
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+}
+.completion-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.completion-bar {
+  width: 100px;
+  height: 8px;
+  background-color: var(--background-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.completion-bar-inner {
+  height: 100%;
+  background-color: var(--green);
+  border-radius: 4px;
+}
+.view-report-btn {
+  padding: 0.4rem 0.8rem;
+}
+.report-not-shared {
+  font-style: italic;
+  color: var(--text-color-light);
+}
+.invite-qr-code {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem auto;
+}
+.invite-link-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    margin-top: 1rem;
 }
 
-.advisor-header {
+/* Floating Action Button (FAB) */
+.fab {
+    position: fixed;
+    bottom: 80px; /* Above nav bar */
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 999;
+    transition: transform 0.2s ease;
+}
+.fab:hover {
+    transform: scale(1.05);
+}
+
+/* Client Report Modal */
+.report-modal {
+    max-width: 800px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 0;
+}
+.report-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding: 0 1rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-color);
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
-.advisor-header h1 {
+.report-modal-header h2 { margin: 0; }
+.report-modal-actions { display: flex; gap: 1rem; }
+.report-modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+.report-section {
+    break-inside: avoid; /* For printing */
+}
+.report-section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+.report-persona-card {
+    text-align: center;
+}
+.report-persona-card .avatar {
+    font-size: 4rem;
+    line-height: 1;
+}
+.report-persona-card h4 {
     font-size: 1.5rem;
-    margin: 0;
+    margin: 0.5rem 0;
+}
+.report-persona-card p {
+    color: var(--text-color-light);
 }
 
-.client-list-container {
-    padding: 0 1rem;
+@media print {
+    body, #root, .container, .report-modal {
+        background: #fff !important;
+        color: #000 !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .report-modal {
+        position: static;
+        width: 100%;
+        max-width: 100%;
+        max-height: none;
+        overflow: visible;
+    }
+    .report-modal-header, .fab, .bottom-nav, .header {
+        display: none !important;
+    }
+    .report-modal-body {
+        padding: 0;
+    }
+    .report-section {
+      page-break-inside: avoid;
+    }
+    .donut-center-text, .axis-label, .legend-info, .ratio-info h3, .ratio-description, .client-info span:last-child {
+      fill: #333 !important;
+      color: #333 !important;
+    }
+    .donut-background, .grid-line, .axis-line, .client-list-table th, .client-list-table td, .report-section h3, .legend-item {
+        border-color: #ccc !important;
+        stroke: #ccc !important;
+    }
 }
 
 
