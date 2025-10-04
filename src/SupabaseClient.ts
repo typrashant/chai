@@ -1,4 +1,3 @@
-
 // Manually define types for import.meta.env to allow for cases where Vite types are unavailable.
 declare global {
     interface ImportMeta {
@@ -97,199 +96,151 @@ export interface Database {
     Tables: {
       app_users: {
         Row: { // The data shape of a row from the table.
-          user_id: string;
-          client_id: string;
-          name: string;
-          phone_number: string;
-          age: number;
-          gender: string | null;
-          profession: string | null;
-          dependents: number | null;
-          persona: string | null;
-          points: number;
-          locked_points: number;
-          points_source: Json; // JSONB column
-          created_at: string;
-          updated_at: string;
-          is_advisor: boolean;
-          advisor_code: string | null;
-          linked_advisor_id: string | null;
-          report_shared_at: string | null;
-        };
+          user_id: string,
+          client_id: string,
+          name: string,
+          phone_number: string,
+          age: number,
+          gender: string | null,
+          profession: string | null,
+          dependents: number | null,
+          persona: string | null,
+          points: number,
+          locked_points: number,
+          points_source: Json, // JSONB column
+          created_at: string,
+          updated_at: string,
+          is_advisor: boolean,
+          advisor_code: string | null,
+          linked_advisor_id: string | null,
+          report_shared_at: string | null,
+        },
         Insert: { // The data shape needed to insert a new row.
-          user_id: string;
-          client_id: string;
-          name: string;
-          phone_number: string;
-          age: number;
-          gender?: string | null;
-          profession?: string | null;
-          dependents?: number | null;
-          persona?: string | null;
-          points?: number;
-          locked_points?: number;
-          points_source?: Json;
-          is_advisor?: boolean;
-          advisor_code?: string | null;
-          linked_advisor_id?: string | null;
-          report_shared_at?: string | null;
-        };
+          user_id: string,
+          client_id: string,
+          name: string,
+          phone_number: string,
+          age: number,
+          gender?: string | null,
+          profession?: string | null,
+          dependents?: number | null,
+          persona?: string | null,
+          points?: number,
+          locked_points?: number,
+          points_source?: Json,
+          is_advisor?: boolean,
+          advisor_code?: string | null,
+          linked_advisor_id?: string | null,
+          report_shared_at?: string | null,
+        },
         Update: { // The data shape needed to update a row.
-          name?: string;
-          age?: number;
-          gender?: string | null;
-          profession?: string | null;
-          dependents?: number | null;
-          persona?: string | null;
-          points?: number;
-          locked_points?: number;
-          points_source?: Json;
-          updated_at?: string;
-          linked_advisor_id?: string | null;
-          report_shared_at?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "app_users_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: true;
-            referencedRelation: "users";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "app_users_linked_advisor_id_fkey";
-            columns: ["linked_advisor_id"];
-            isOneToOne: false;
-            referencedRelation: "app_users";
-            referencedColumns: ["user_id"];
-          }
-        ];
-      };
+          name?: string,
+          age?: number,
+          gender?: string | null,
+          profession?: string | null,
+          dependents?: number | null,
+          persona?: string | null,
+          points?: number,
+          locked_points?: number,
+          points_source?: Json,
+          updated_at?: string,
+          linked_advisor_id?: string | null,
+          report_shared_at?: string | null,
+        },
+        Relationships: [],
+      },
       financial_snapshots: {
         Row: {
-          snapshot_id: number;
-          user_id: string;
-          snapshot_date: string;
-          snapshot_data: Financials | null;
-        };
+          snapshot_id: number,
+          user_id: string,
+          snapshot_date: string,
+          snapshot_data: Financials | null,
+        },
         Insert: {
-          user_id: string;
-          snapshot_data?: Financials | null;
-        };
-        Update: {}; // Snapshots are typically immutable
-        Relationships: [
-          {
-            foreignKeyName: "financial_snapshots_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "app_users";
-            referencedColumns: ["user_id"];
-          }
-        ];
-      };
+          user_id: string,
+          snapshot_data?: Financials | null,
+        },
+        Update: {
+            snapshot_data?: Financials | null,
+        },
+        Relationships: [],
+      },
       goals: {
         Row: {
-          goal_id: string;
-          user_id: string;
-          goal_name: string;
-          target_age: number;
-          target_value: number;
-          created_at: string;
-          is_achieved: boolean;
-        };
+          goal_id: string,
+          user_id: string,
+          goal_name: string,
+          target_age: number,
+          target_value: number,
+          created_at: string,
+          is_achieved: boolean,
+        },
         Insert: {
-          goal_id?: string;
-          user_id: string;
-          goal_name: string;
-          target_age: number;
-          target_value: number;
-        };
+          goal_id?: string,
+          user_id: string,
+          goal_name: string,
+          target_age: number,
+          target_value: number,
+        },
         Update: {
-          goal_name?: string;
-          target_age?: number;
-          target_value?: number;
-          is_achieved?: boolean;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "goals_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "app_users";
-            referencedColumns: ["user_id"];
-          }
-        ];
-      };
+          goal_name?: string,
+          target_age?: number,
+          target_value?: number,
+          is_achieved?: boolean,
+        },
+        Relationships: [],
+      },
       user_actions: {
         Row: {
-          action_id: string;
-          user_id: string;
-          action_key: string;
-          status: 'in_progress' | 'completed';
-          target_date: string;
-          started_at: string;
-          completed_at: string | null;
-        };
+          action_id: string,
+          user_id: string,
+          action_key: string,
+          status: 'in_progress' | 'completed',
+          target_date: string,
+          started_at: string,
+          completed_at: string | null,
+        },
         Insert: {
-          action_id?: string;
-          user_id: string;
-          action_key: string;
-          target_date: string;
-          status?: 'in_progress';
-        };
+          action_id?: string,
+          user_id: string,
+          action_key: string,
+          target_date: string,
+          status?: 'in_progress',
+        },
         Update: {
-          status?: 'completed';
-          completed_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_actions_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "app_users";
-            referencedColumns: ["user_id"];
-          }
-        ];
-      };
-    };
+          status?: 'completed',
+          completed_at?: string,
+        },
+        Relationships: [],
+      },
+    },
     Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-  auth: {
-    Tables: {
-      users: {
+      public_advisor_info: {
         Row: {
-          id: string;
-          // Other properties of auth.users can be added here if needed
-        };
-        Insert: {};
-        Update: {};
-        Relationships: [];
-      };
-    };
-    Views: {
-      [_ in never]: never;
-    };
+          user_id: string | null,
+          advisor_code: string | null,
+        },
+        Insert: {
+          user_id?: string | null,
+          advisor_code?: string | null,
+        },
+        Update: {
+          user_id?: string | null,
+          advisor_code?: string | null,
+        },
+        Relationships: [],
+      },
+    },
     Functions: {
       [_ in never]: never;
-    };
+    },
     Enums: {
       [_ in never]: never;
-    };
+    },
     CompositeTypes: {
       [_ in never]: never;
-    };
-  };
+    },
+  },
 }
 
 // Helper for JSONB columns

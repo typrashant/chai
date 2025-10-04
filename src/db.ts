@@ -1,7 +1,4 @@
-
-
 // This file now acts as the data access layer for our Supabase backend.
-// FIX: Import `FinancialItem` to make it available within this module.
 import { supabase, type Database, type Financials, type Json, type FinancialItem, type Assets, type Liabilities } from './SupabaseClient.ts';
 
 // --- Type Definitions based on Supabase Schema ---
@@ -84,7 +81,7 @@ export const createNewUserProfile = async (
         const advisor_code = generateAdvisorCode();
         const { data, error } = await supabase
             .from('app_users')
-            .insert([{
+            .insert({
                 user_id,
                 name,
                 phone_number,
@@ -94,15 +91,14 @@ export const createNewUserProfile = async (
                 points: 0,
                 locked_points: 0,
                 points_source: {},
-                // FIX: The 'age' column is non-nullable, but not collected for advisor sign-ups.
-                // Providing a default value of 0 to satisfy the database constraint.
-                age: 0,
-            }])
+                age: 0, // Advisors don't need personal demographics
+            })
             .select()
             .single();
 
         if (error) {
             console.error('Error creating advisor profile:', error);
+            // This handles a rare race condition where the generated code might already exist.
             if (error.message.includes('duplicate key value violates unique constraint')) {
                 return createNewUserProfile(user_id, name, phone_number, is_advisor);
             }
@@ -113,13 +109,13 @@ export const createNewUserProfile = async (
     } else { // Create a personal user profile
         let linked_advisor_id: string | null = null;
         if (advisor_code_from_url) {
+            // Use the secure view to find the advisor's user_id from their code
             const { data: advisor } = await supabase
-                .from('app_users')
+                .from('public_advisor_info')
                 .select('user_id')
                 .eq('advisor_code', advisor_code_from_url)
-                .eq('is_advisor', true)
                 .single();
-            if (advisor) {
+            if (advisor && advisor.user_id) {
                 linked_advisor_id = advisor.user_id;
             } else {
                 console.warn("Advisor code provided but not found:", advisor_code_from_url);
@@ -129,21 +125,21 @@ export const createNewUserProfile = async (
         const client_id = generateClientID();
         const { data, error } = await supabase
             .from('app_users')
-            .insert([{
+            .insert({
                 user_id,
                 name,
                 phone_number,
                 client_id,
-                age,
-                gender,
-                dependents,
-                profession,
-                points: 70,
+                age: typeof age === 'number' ? age : 0,
+                gender: gender ?? null,
+                dependents: dependents ?? null,
+                profession: profession ?? null,
+                points: 70, // Starting points for completing demographics
                 locked_points: 0,
                 points_source: { demographics: true },
                 linked_advisor_id,
                 is_advisor: false,
-            }])
+            })
             .select()
             .single();
             
@@ -165,15 +161,9 @@ export const getUserProfile = async (user_id: string): Promise<UserProfile | nul
 
     if (error && error.code !== 'PGRST116') { // Ignore 'PGRST116' (No rows found)
         console.error('Error fetching user profile:', error);
-        return null;
     }
     
-    if (!data) return null;
-    if ('user_id' in data) {
-        return data;
-    }
-
-    return null;
+    return data;
 }
 
 export const getLatestFinancialSnapshot = async (user_id: string): Promise<Financials | null> => {
@@ -188,15 +178,9 @@ export const getLatestFinancialSnapshot = async (user_id: string): Promise<Finan
 
     if (error && error.code !== 'PGRST116') {
         console.error('Error fetching latest financial snapshot:', error);
-        return null;
     }
     
-    if (!data) return null;
-    if ('snapshot_data' in data) {
-      return data.snapshot_data;
-    }
-    
-    return null;
+    return data ? data.snapshot_data : null;
 }
 
 export const getFinancialHistory = async (user_id: string): Promise<FinancialSnapshot[]> => {
@@ -209,7 +193,6 @@ export const getFinancialHistory = async (user_id: string): Promise<FinancialSna
 
     if (error) {
         console.error('Error fetching financial history:', error);
-        return [];
     }
     return data || [];
 };
@@ -217,30 +200,26 @@ export const getFinancialHistory = async (user_id: string): Promise<FinancialSna
 export const createFinancialSnapshot = async (user_id: string, financials: Financials): Promise<boolean> => {
     if (!supabase) return false;
     
-    console.log("Attempting to create financial snapshot for user:", user_id);
     const sanitizedFinancials = sanitizeForSupabase(financials);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
         .from('financial_snapshots')
-        .insert([{
+        .insert({
             user_id,
-            snapshot_data: sanitizedFinancials as Financials,
-        }])
-        .select(); 
+            snapshot_data: sanitizedFinancials,
+        }); 
 
     if (error) {
-        console.error('Error creating financial snapshot:', JSON.stringify(error, null, 2));
+        console.error('Error creating financial snapshot:', error);
         console.error(`Failed to save financial data: ${error.message}. This could be a database permission (RLS) issue.`);
         return false;
     }
 
-    console.log("Successfully created snapshot:", data);
     return true;
 }
 
 export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
-    console.log("Attempting to update persona and award points for user:", user_id);
 
     const { data: currentProfile, error: getError } = await supabase
         .from('app_users')
@@ -249,15 +228,14 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (getError || !currentProfile) {
-        console.error('Could not fetch user to award points:', JSON.stringify(getError, null, 2));
-        console.error(`Failed to fetch user profile to save persona: ${getError?.message}.`);
+        console.error('Could not fetch user to award points:', getError);
         return null;
     }
     
     const currentPointsSource = (currentProfile.points_source as { [key: string]: boolean }) || {};
     const POINTS_FOR_QUIZ = 30;
     
-    const updates: Database['public']['Tables']['app_users']['Update'] = {
+    const updates: Partial<UserProfile> = {
         persona,
         updated_at: new Date().toISOString()
     };
@@ -275,19 +253,11 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .single();
 
     if (error) {
-        console.error('Error updating persona and points:', JSON.stringify(error, null, 2));
-        console.error(`Failed to save persona: ${error.message}. This could be a database permission (RLS) issue.`);
+        console.error('Error updating persona and points:', error);
         return null;
     }
-
-    console.log("Successfully updated user profile:", data);
     
-    if (!data) return null;
-    if ('user_id' in data) {
-        return data;
-    }
-
-    return null;
+    return data;
 }
 
 
@@ -311,14 +281,9 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
     
     if (error) {
         console.error('Error awarding points:', error);
-        return null;
     }
 
-    if (data && 'user_id' in data) {
-        return data;
-    }
-    
-    return null;
+    return data;
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
@@ -330,7 +295,6 @@ export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
 
     if (error) {
         console.error('Error fetching goals:', error);
-        return [];
     }
     return data || [];
 }
@@ -339,18 +303,17 @@ export const addUserGoal = async (user_id: string, goal: Omit<Goal, 'goal_id' | 
     if (!supabase) return null;
     const { data, error } = await supabase
         .from('goals')
-        .insert([{
+        .insert({
             user_id,
             goal_name: goal.goal_name,
             target_age: goal.target_age,
             target_value: goal.target_value,
-        }])
+        })
         .select()
         .single();
 
     if (error) {
         console.error('Error adding goal:', error);
-        return null;
     }
     return data;
 }
@@ -380,7 +343,6 @@ export const getUserActions = async (user_id: string): Promise<UserAction[]> => 
     
     if (error) {
         console.error('Error fetching user actions:', error);
-        return [];
     }
     return data || [];
 };
@@ -409,8 +371,6 @@ export const startUserAction = async (user_id: string, action_key: string, targe
         
     if (userError) {
         console.error('Error updating locked points:', userError);
-        // Attempt to roll back action creation? For now, we'll just log.
-        return null;
     }
     
     return updatedUser;
@@ -442,7 +402,6 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
     
     if (userError) {
         console.error('Error unlocking points:', userError);
-        return null;
     }
     
     return updatedUser;
@@ -452,14 +411,14 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
 
 export const linkToAdvisor = async (user_id: string, advisor_code: string): Promise<UserProfile | null> => {
     if (!supabase) return null;
+    // Use the secure view to find the advisor's user_id from their code
     const { data: advisor, error: advisorError } = await supabase
-        .from('app_users')
+        .from('public_advisor_info')
         .select('user_id')
         .eq('advisor_code', advisor_code)
-        .eq('is_advisor', true)
         .single();
 
-    if (advisorError || !advisor) {
+    if (advisorError || !advisor || !advisor.user_id) {
         console.error('Advisor not found for code:', advisor_code, advisorError);
         return null;
     }
@@ -473,7 +432,6 @@ export const linkToAdvisor = async (user_id: string, advisor_code: string): Prom
 
     if (linkError) {
         console.error('Error linking user to advisor:', linkError);
-        return null;
     }
     return updatedUser;
 }
@@ -489,7 +447,6 @@ export const removeAdvisorLink = async (user_id: string): Promise<UserProfile | 
     
     if (error) {
         console.error('Error removing advisor link:', error);
-        return null;
     }
     return updatedUser;
 }
@@ -505,7 +462,6 @@ export const shareReportWithAdvisor = async (user_id: string): Promise<UserProfi
     
     if (error) {
         console.error('Error sharing report:', error);
-        return null;
     }
     return data;
 }
@@ -514,7 +470,6 @@ export const getAdvisorById = async (advisor_id: string): Promise<UserProfile | 
     return getUserProfile(advisor_id);
 }
 
-// FIX: Update function signature to reflect the added `completion` and `netWorth` properties.
 export const getAdvisorClientsWithStats = async (advisor_id: string): Promise<{clients: (UserProfile & { completion: number; netWorth: number; })[], stats: any}> => {
     if (!supabase) return { clients: [], stats: {} };
     // In a real app, this would be a single RPC call for performance.
@@ -535,27 +490,29 @@ export const getAdvisorClientsWithStats = async (advisor_id: string): Promise<{c
     let planningCompleted = 0;
 
     const clientsWithCompletion = await Promise.all(clients.map(async (client) => {
-        const { data: snapshot, error: snapErr } = await supabase
+        if (!supabase) {
+            return { ...client, completion: 0, netWorth: 0 };
+        }
+        const { data: snapshot } = await supabase
             .from('financial_snapshots')
             .select('snapshot_data')
             .eq('user_id', client.user_id)
-            .limit(1);
+            .order('snapshot_date', { ascending: false })
+            .limit(1)
+            .single();
         
-        const { data: goals, error: goalErr } = await supabase
+        const { count } = await supabase
             .from('goals')
-            .select('goal_id')
-            .eq('user_id', client.user_id)
-            .limit(1);
+            .select('goal_id', { count: 'exact', head: true })
+            .eq('user_id', client.user_id);
 
         let completion = 0;
+        const snapshot_data = snapshot?.snapshot_data;
         const hasPersona = !!client.persona;
-        // FIX: Use `Number(v)` to safely cast `unknown` to `number` for comparison.
-        const hasNetWorth = snapshot && snapshot[0]?.snapshot_data?.assets && Object.values(snapshot[0]?.snapshot_data.assets).some(v => Number(v) > 0);
-        // FIX: `FinancialItem` is now in scope due to the import fix.
-        const hasCashflow = snapshot && snapshot[0]?.snapshot_data?.income && Object.values(snapshot[0]?.snapshot_data.income).some(item => (item as FinancialItem).value > 0);
-        // FIX: Use `Number(v)` to safely cast `unknown` to `number` for comparison.
-        const hasInsurance = snapshot && snapshot[0]?.snapshot_data?.insurance && Object.values(snapshot[0]?.snapshot_data.insurance).some(v => Number(v) > 0);
-        const hasGoal = goals && goals.length > 0;
+        const hasNetWorth = snapshot_data?.assets && Object.values(snapshot_data.assets).some(v => Number(v) > 0);
+        const hasCashflow = snapshot_data?.income && Object.values(snapshot_data.income).some(item => (item as FinancialItem).value > 0);
+        const hasInsurance = snapshot_data?.insurance && Object.values(snapshot_data.insurance).some(v => Number(v) > 0);
+        const hasGoal = (count || 0) > 0;
         
         if (hasPersona) completion += 20;
         if (hasNetWorth) { completion += 20; netWorthCalculated++; }
@@ -565,13 +522,11 @@ export const getAdvisorClientsWithStats = async (advisor_id: string): Promise<{c
 
         if (completion === 100) planningCompleted++;
         
-        // FIX: Safely access snapshot data and use `Object.keys` in reduce to prevent type errors.
-        const snapshotData = snapshot?.[0]?.snapshot_data;
-        const netWorthValue = (hasNetWorth && snapshotData)
-            ? Object.keys(snapshotData.assets).reduce((s, k) => s + Number(snapshotData.assets[k as keyof Assets] || 0), 0) -
-              Object.keys(snapshotData.liabilities || {}).reduce((s, k) => s + Number((snapshotData.liabilities || {})[k as keyof Liabilities] || 0), 0)
+        const netWorthValue = (hasNetWorth && snapshot_data)
+            ? Object.values(snapshot_data.assets).map(v => Number(v || 0)).reduce((s, v) => s + v, 0) -
+              Object.values(snapshot_data.liabilities || {}).map(v => Number(v || 0)).reduce((s, v) => s + v, 0)
             : 0;
-
+        
         return { ...client, completion, netWorth: netWorthValue };
     }));
     
