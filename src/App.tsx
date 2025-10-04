@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -96,12 +98,18 @@ export const calculateAllFinancialMetrics = (financials: Financials, user: UserP
 
     const totalAssets = Object.values(assets || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
     const totalLiabilities = Object.values(liabilities || {}).map(v => Number(v) || 0).reduce((sum, v) => sum + v, 0);
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const monthlyIncome = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const monthlyExpenses = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem ? sum + (finItem.frequency === 'monthly' ? finItem.value : finItem.value / 12) : sum }, 0);
     
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const totalMonthlyIncome_MonthlyItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const totalAnnualIncome_AnnualItems = Object.values(income || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const totalMonthlyExpenses_MonthlyItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'monthly' ? sum + finItem.value : sum }, 0);
+    // FIX: Explicitly cast the item to FinancialItem to ensure type-safe access to its properties, preventing potential runtime errors.
     const totalAnnualExpenses_AnnualItems = Object.values(expenses || {}).reduce((sum, item) => { const finItem = item as FinancialItem; return finItem && finItem.frequency === 'annual' ? sum + finItem.value : sum }, 0);
 
     const monthlySavings = monthlyIncome - monthlyExpenses;
@@ -572,7 +580,7 @@ const App = () => {
                 {profileMessage && <div className={`profile-message ${profileMessage.type}`}>{profileMessage.text}</div>}
                  {linkedAdvisor ? (
                     <>
-                        <div className="profile-dropdown-item"><span>Advisor</span><strong>{linkedAdvisor.name}</strong></div>
+                        <div className="profile-dropdown-item"><span>Advisor</span><strong>{linkedAdvisor.name || 'Your Advisor'}</strong></div>
                         <div className="profile-dropdown-item advisor-code-item">
                             <span>Advisor Code</span>
                             <div className="advisor-code-display">
@@ -722,7 +730,7 @@ const App = () => {
                     </button>
                 </div>
                 <div className="modal-body">
-                    <p>Are you sure you want to remove <strong>{linkedAdvisor?.name}</strong>? This will revoke their access to your financial reports.</p>
+                    <p>Are you sure you want to remove <strong>{linkedAdvisor?.name || 'your advisor'}</strong>? This will revoke their access to your financial reports.</p>
                 </div>
                 <div className="share-modal-footer">
                     <button className="action-button-secondary" onClick={() => setIsRemoveAdvisorModalOpen(false)}>Cancel</button>

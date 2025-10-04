@@ -472,7 +472,7 @@ export const getAdvisorById = async (advisor_id: string): Promise<UserProfile | 
     // This prevents a client from accessing the full advisor profile.
     const { data, error } = await supabase
         .from('public_advisor_info')
-        .select('user_id, name, advisor_code') // Select the publicly safe fields
+        .select('user_id, advisor_code') // Select only the publicly safe fields
         .eq('user_id', advisor_id)
         .single();
 

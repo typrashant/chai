@@ -219,17 +219,14 @@ export interface Database {
         Row: {
           user_id: string | null,
           advisor_code: string | null,
-          name: string | null,
         },
         Insert: {
           user_id?: string | null,
           advisor_code?: string | null,
-          name?: string | null,
         },
         Update: {
           user_id?: string | null,
           advisor_code?: string | null,
-          name?: string | null,
         },
         Relationships: [],
       },
