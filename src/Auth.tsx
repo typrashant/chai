@@ -48,8 +48,20 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [advisorCodeFromUrl, setAdvisorCodeFromUrl] = useState<string | null>(null);
   
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('advisor_code');
+    let code: string | null = sessionStorage.getItem('advisor_code');
+
+    if (!code) {
+        const urlParams = new URLSearchParams(window.location.search);
+        code = urlParams.get('advisor_code');
+        if (code) {
+            sessionStorage.setItem('advisor_code', code);
+            // Clean the URL for a better user experience
+            const nextURL = new URL(window.location.href);
+            nextURL.searchParams.delete('advisor_code');
+            window.history.replaceState({}, document.title, nextURL.toString());
+        }
+    }
+
     if (code) {
         setAdvisorCodeFromUrl(code);
     }
@@ -112,21 +124,38 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
 
     if (session) {
       const existingProfile = await getUserProfile(session.user.id);
-      if (existingProfile) {
-        onLoginSuccess(existingProfile);
-      } else {
-        // New user
-        if (isAdvisor && authMode === 'signup') {
-            const newProfile = await createNewUserProfile(session.user.id, name, `+91${phone}`, true);
-            if(newProfile) {
-                onLoginSuccess(newProfile);
-            } else {
-                setError('Could not create advisor profile. Please try again.');
-                setStep(1);
-            }
+
+      // SIGN-IN FLOW
+      if (authMode === 'signin') {
+        if (existingProfile) {
+          // Successful sign-in for existing user
+          onLoginSuccess(existingProfile);
         } else {
-            // New personal user, proceed to demographics
+          // User tried to sign in, but no profile exists. Guide them to sign up.
+          setError('No account found with this phone number. Please sign up.');
+          setAuthMode('signup');
+          setStep(1); 
+        }
+      } 
+      // SIGN-UP FLOW
+      else { // authMode === 'signup'
+        if (existingProfile) {
+          // This phone number is already registered. Just log them in.
+          onLoginSuccess(existingProfile);
+        } else {
+          // This is a genuinely new user. Create a profile based on the selected role.
+          if (isAdvisor) {
+            const newProfile = await createNewUserProfile(session.user.id, name, `+91${phone}`, true);
+            if (newProfile) {
+              onLoginSuccess(newProfile);
+            } else {
+              setError('Could not create advisor profile. Please try again.');
+              setStep(1);
+            }
+          } else {
+            // New personal user, proceed to the demographics step.
             setStep(3);
+          }
         }
       }
     }
@@ -165,6 +194,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       );
 
       if (newProfile) {
+        sessionStorage.removeItem('advisor_code'); // Clean up after successful use
         onLoginSuccess(newProfile);
       } else {
         setError('There was an error creating your profile. Please try again.');

@@ -102,7 +102,7 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
                 </div>
 
                 <div className="client-filters">
-                    <input type="text" placeholder="Search by name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <input type="text" placeholder="Search by name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{flexGrow: 2, minWidth: '150px'}} />
                     <div className="form-group">
                         <label htmlFor="completion">Status</label>
                         <select id="completion" name="completion" value={filters.completion} onChange={handleFilterChange}>
@@ -111,6 +111,24 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
                             <option value="in-progress">In Progress</option>
                             <option value="not-started">Not Started</option>
                         </select>
+                    </div>
+                     <div className="form-group">
+                        <label htmlFor="regDateStart">Registered</label>
+                        <input type="date" id="regDateStart" name="regDateStart" value={filters.regDateStart} onChange={handleFilterChange} title="Registration start date" />
+                        <span style={{color: 'var(--text-color-light)'}}>to</span>
+                        <input type="date" id="regDateEnd" name="regDateEnd" value={filters.regDateEnd} onChange={handleFilterChange} title="Registration end date" />
+                    </div>
+                     <div className="form-group">
+                        <label htmlFor="ageMin">Age</label>
+                        <input type="number" id="ageMin" name="ageMin" placeholder="Min" value={filters.ageMin} onChange={handleFilterChange} style={{width: '70px'}} />
+                         <span style={{color: 'var(--text-color-light)'}}>-</span>
+                        <input type="number" id="ageMax" name="ageMax" placeholder="Max" value={filters.ageMax} onChange={handleFilterChange} style={{width: '70px'}} />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="netWorthMin">Net Worth</label>
+                        <input type="number" id="netWorthMin" name="netWorthMin" placeholder="Min" value={filters.netWorthMin} onChange={handleFilterChange} style={{width: '90px'}} />
+                        <span style={{color: 'var(--text-color-light)'}}>-</span>
+                        <input type="number" id="netWorthMax" name="netWorthMax" placeholder="Max" value={filters.netWorthMax} onChange={handleFilterChange} style={{width: '90px'}} />
                     </div>
                 </div>
                  <div className="table-wrapper">

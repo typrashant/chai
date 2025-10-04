@@ -32,11 +32,9 @@ const NetWorthTimeline: React.FC<NetWorthTimelineProps> = ({ user, metrics, fina
         const userProgressPoints = financialHistory
             .map(snapshot => {
                 if (!snapshot.snapshot_data?.assets || !snapshot.snapshot_date) return null;
-                // FIX: Use Object.keys for type-safe reduction, preventing errors where values were inferred as `unknown`.
-                const assetsData = snapshot.snapshot_data.assets;
-                const assets = Object.keys(assetsData).reduce((sum, key) => sum + Number(assetsData[key as keyof typeof assetsData]), 0);
-                const liabilitiesData = snapshot.snapshot_data.liabilities || {};
-                const liabilities = Object.keys(liabilitiesData).reduce((sum, key) => sum + Number(liabilitiesData[key as keyof typeof liabilitiesData]), 0);
+                // FIX: Use .map() before .reduce() to safely handle the 'unknown[]' type returned by Object.values(), preventing arithmetic errors.
+                const assets = Object.values(snapshot.snapshot_data.assets).map(v => Number(v || 0)).reduce((s, v) => s + v, 0);
+                const liabilities = Object.values(snapshot.snapshot_data.liabilities || {}).map(v => Number(v || 0)).reduce((s, v) => s + v, 0);
                 const snapshotNetWorth = assets - liabilities;
 
                 const yearsAgo = (new Date().getTime() - new Date(snapshot.snapshot_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25);

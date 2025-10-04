@@ -258,6 +258,7 @@ const App = () => {
   
   const [advisorCodeInput, setAdvisorCodeInput] = useState('');
   const [linkedAdvisor, setLinkedAdvisor] = useState<UserProfile | null>(null);
+  const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -459,10 +460,11 @@ const App = () => {
       if (updatedUser) {
           setCurrentUser(updatedUser);
           setAdvisorCodeInput('');
-          alert("Successfully linked to advisor!");
+          setProfileMessage({ type: 'success', text: "Successfully linked to advisor!" });
       } else {
-          alert("Failed to link advisor. Please check the code and try again.");
+          setProfileMessage({ type: 'error', text: "Failed to link. Check the code." });
       }
+      setTimeout(() => setProfileMessage(null), 3000);
   };
   
   const handleShareReport = async () => {
@@ -488,10 +490,12 @@ const App = () => {
     if (updatedUser) {
         setCurrentUser(updatedUser);
         setIsRemoveAdvisorModalOpen(false);
-        alert("Advisor has been removed.");
+        setProfileMessage({ type: 'success', text: "Advisor has been removed." });
     } else {
-        alert("Failed to remove advisor. Please try again.");
+        setIsRemoveAdvisorModalOpen(false);
+        setProfileMessage({ type: 'error', text: "Failed to remove advisor." });
     }
+    setTimeout(() => setProfileMessage(null), 3000);
   };
 
   const metricsData = useFinancialMetrics(financials, currentUser, goals);
@@ -565,6 +569,7 @@ const App = () => {
                 <div className="profile-dropdown-item"><span>Client ID</span><strong>{currentUser.client_id}</strong></div>
                 <div className="profile-dropdown-item"><span>App Version</span><strong>{APP_VERSION}</strong></div>
                 <div className="profile-dropdown-divider"></div>
+                {profileMessage && <div className={`profile-message ${profileMessage.type}`}>{profileMessage.text}</div>}
                  {linkedAdvisor ? (
                     <>
                         <div className="profile-dropdown-item"><span>Advisor</span><strong>{linkedAdvisor.name}</strong></div>
