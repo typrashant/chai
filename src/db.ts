@@ -467,7 +467,22 @@ export const shareReportWithAdvisor = async (user_id: string): Promise<UserProfi
 }
 
 export const getAdvisorById = async (advisor_id: string): Promise<UserProfile | null> => {
-    return getUserProfile(advisor_id);
+    if (!supabase) return null;
+    // Query the secure, public view to get advisor details.
+    // This prevents a client from accessing the full advisor profile.
+    const { data, error } = await supabase
+        .from('public_advisor_info')
+        .select('user_id, name, advisor_code') // Select the publicly safe fields
+        .eq('user_id', advisor_id)
+        .single();
+
+    if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching advisor by ID:', error);
+    }
+
+    // The view doesn't return a full UserProfile, so we cast the partial data.
+    // The calling component (App.tsx) only needs name and advisor_code, which are present.
+    return data as UserProfile | null;
 }
 
 export const getAdvisorClientsWithStats = async (advisor_id: string): Promise<{clients: (UserProfile & { completion: number; netWorth: number; })[], stats: any}> => {
