@@ -249,15 +249,19 @@ export const updateUserPersonaAndAwardPoints = async (user_id: string, persona: 
         .from('app_users')
         .update(updates)
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
 
     if (error) {
         console.error('Error updating persona and points:', error);
         return null;
     }
+
+    if (!data || data.length === 0) {
+        console.error('Failed to update persona: User not found or RLS policy prevented update.');
+        return null;
+    }
     
-    return data;
+    return data[0];
 }
 
 
@@ -276,14 +280,18 @@ export const awardPoints = async (user_id: string, source: string, pointsToAdd: 
         .from('app_users')
         .update({ points: newPoints, points_source: newPointsSource })
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
     
     if (error) {
         console.error('Error awarding points:', error);
     }
+    
+    if (!data || data.length === 0) {
+        console.error('Failed to award points: User not found or RLS policy prevented update.');
+        return null;
+    }
 
-    return data;
+    return data[0];
 }
 
 export const getUserGoals = async (user_id: string): Promise<Goal[]> => {
@@ -366,14 +374,18 @@ export const startUserAction = async (user_id: string, action_key: string, targe
         .from('app_users')
         .update({ locked_points: newLockedPoints })
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
         
     if (userError) {
         console.error('Error updating locked points:', userError);
     }
     
-    return updatedUser;
+    if (!updatedUser || updatedUser.length === 0) {
+        console.error('Failed to start action: User not found or RLS policy prevented update.');
+        return null;
+    }
+    
+    return updatedUser[0];
 };
 
 export const completeUserAction = async (user_id: string, action_id: string, currentUser: UserProfile): Promise<UserProfile | null> => {
@@ -397,14 +409,18 @@ export const completeUserAction = async (user_id: string, action_id: string, cur
         .from('app_users')
         .update({ points: newPoints, locked_points: newLockedPoints })
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
     
     if (userError) {
         console.error('Error unlocking points:', userError);
     }
+
+    if (!updatedUser || updatedUser.length === 0) {
+        console.error('Failed to complete action: User not found or RLS policy prevented update.');
+        return null;
+    }
     
-    return updatedUser;
+    return updatedUser[0];
 };
 
 // --- Advisor Functions ---
@@ -427,13 +443,18 @@ export const linkToAdvisor = async (user_id: string, advisor_code: string): Prom
         .from('app_users')
         .update({ linked_advisor_id: advisor.user_id })
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
 
     if (linkError) {
         console.error('Error linking user to advisor:', linkError);
     }
-    return updatedUser;
+
+    if (!updatedUser || updatedUser.length === 0) {
+        console.error('Failed to link advisor: User not found or RLS policy prevented update.');
+        return null;
+    }
+
+    return updatedUser[0];
 }
 
 export const removeAdvisorLink = async (user_id: string): Promise<UserProfile | null> => {
@@ -442,13 +463,18 @@ export const removeAdvisorLink = async (user_id: string): Promise<UserProfile | 
         .from('app_users')
         .update({ linked_advisor_id: null, report_shared_at: null }) // Also reset share status
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
     
     if (error) {
         console.error('Error removing advisor link:', error);
     }
-    return updatedUser;
+
+    if (!updatedUser || updatedUser.length === 0) {
+        console.error('Failed to remove advisor: User not found or RLS policy prevented update.');
+        return null;
+    }
+    
+    return updatedUser[0];
 }
 
 export const shareReportWithAdvisor = async (user_id: string): Promise<UserProfile | null> => {
@@ -457,13 +483,19 @@ export const shareReportWithAdvisor = async (user_id: string): Promise<UserProfi
         .from('app_users')
         .update({ report_shared_at: new Date().toISOString() })
         .eq('user_id', user_id)
-        .select()
-        .single();
+        .select();
     
     if (error) {
         console.error('Error sharing report:', error);
+        return null;
     }
-    return data;
+
+    if (!data || data.length === 0) {
+        console.error('Failed to share report: User not found or RLS policy prevented update.');
+        return null;
+    }
+
+    return data[0];
 }
 
 export const getAdvisorById = async (advisor_id: string): Promise<UserProfile | null> => {
