@@ -2092,6 +2092,18 @@ main {
     align-items: center;
     gap: 0.5rem;
 }
+.filter-input-range {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-grow: 1; /* Allow the range container to fill available space */
+    min-width: 0; /* Critical for allowing the container to shrink */
+}
+.filter-input-range input {
+    flex: 1; /* Allow inputs to share space equally */
+    min-width: 0; /* Critical for allowing inputs to shrink below their default size */
+    width: 100%; /* Helps flexbox calculations */
+}
 .filter-group label {
     font-size: 0.8rem;
     font-weight: 600;
@@ -2106,9 +2118,6 @@ main {
     color: var(--text-color);
     border-radius: 6px;
     font-family: 'Poppins', sans-serif;
-}
-.filter-group input[type="number"] {
-    width: 80px;
 }
 .filter-group input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.6);
@@ -2315,10 +2324,6 @@ main {
   }
   .filter-group {
       justify-content: space-between;
-  }
-  .filter-group input[type="date"], .filter-group input[type="number"] {
-      width: auto;
-      flex-grow: 1;
   }
 
   .client-list-table thead {

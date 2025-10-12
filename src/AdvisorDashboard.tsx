@@ -140,21 +140,27 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
                         </div>
                         <div className="filter-group">
                             <label htmlFor="regDateStart">Registered</label>
-                            <input type="date" id="regDateStart" name="regDateStart" value={filters.regDateStart} onChange={handleFilterChange} title="Registration start date" />
-                            <span>-</span>
-                            <input type="date" id="regDateEnd" name="regDateEnd" value={filters.regDateEnd} onChange={handleFilterChange} title="Registration end date" />
+                            <div className="filter-input-range">
+                                <input type="date" id="regDateStart" name="regDateStart" value={filters.regDateStart} onChange={handleFilterChange} title="Registration start date" />
+                                <span>-</span>
+                                <input type="date" id="regDateEnd" name="regDateEnd" value={filters.regDateEnd} onChange={handleFilterChange} title="Registration end date" />
+                            </div>
                         </div>
                         <div className="filter-group">
                             <label htmlFor="ageMin">Age</label>
-                            <input type="number" id="ageMin" name="ageMin" placeholder="Min" value={filters.ageMin} onChange={handleFilterChange} />
-                             <span>-</span>
-                            <input type="number" id="ageMax" name="ageMax" placeholder="Max" value={filters.ageMax} onChange={handleFilterChange} />
+                            <div className="filter-input-range">
+                                <input type="number" id="ageMin" name="ageMin" placeholder="Min" value={filters.ageMin} onChange={handleFilterChange} />
+                                <span>-</span>
+                                <input type="number" id="ageMax" name="ageMax" placeholder="Max" value={filters.ageMax} onChange={handleFilterChange} />
+                            </div>
                         </div>
                         <div className="filter-group">
                             <label htmlFor="netWorthMin">Net Worth</label>
-                            <input type="number" id="netWorthMin" name="netWorthMin" placeholder="Min" value={filters.netWorthMin} onChange={handleFilterChange} />
-                            <span>-</span>
-                            <input type="number" id="netWorthMax" name="netWorthMax" placeholder="Max" value={filters.netWorthMax} onChange={handleFilterChange} />
+                            <div className="filter-input-range">
+                                <input type="number" id="netWorthMin" name="netWorthMin" placeholder="Min" value={filters.netWorthMin} onChange={handleFilterChange} />
+                                <span>-</span>
+                                <input type="number" id="netWorthMax" name="netWorthMax" placeholder="Max" value={filters.netWorthMax} onChange={handleFilterChange} />
+                            </div>
                         </div>
                     </div>
                     <div className="table-wrapper">

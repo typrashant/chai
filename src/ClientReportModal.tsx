@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { type UserProfile, type Financials, type Goal, type Expenses, type FinancialItem } from './db.ts';
 import { calculateAllFinancialMetrics } from './App.tsx';
@@ -16,13 +15,14 @@ interface ClientReportModalProps {
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
-const personaDetails: { [key: string]: { name: string; archetype: string; avatar: string } } = {
-    Guardian: { name: 'The Cautious Owl', archetype: 'Capital Protector', avatar: '🦉' },
-    Planner: { name: 'The Balanced Red Panda', archetype: 'Balanced Strategist', avatar: '🐼' },
-    Adventurer: { name: 'The Daring Falcon', archetype: 'Calculated Risk-Taker', avatar: '🦅' },
-    Spender: { name: 'The Joyful Otter', archetype: 'Lifestyle Enthusiast', avatar: '🦦' },
-    Seeker: { name: 'The Curious Fox', archetype: 'Growth Explorer', avatar: '🦊' },
-    Accumulator: { name: 'The Bold Lion', archetype: 'Optimistic Investor', avatar: '🦁' }
+// This object provides the descriptions for each persona type.
+const personaDescriptions: { [key: string]: { description: string } } = {
+    Guardian: { description: "You are a meticulous planner who prioritizes capital preservation. Your financial strategy is built on safety, security, and predictable outcomes." },
+    Planner: { description: "You are goal-oriented and methodical. You follow a well-defined financial plan, balancing growth and security to achieve your long-term objectives." },
+    Adventurer: { description: "You are a calculated risk-taker. You thoroughly research high-growth opportunities and strategically add them to your portfolio to maximize returns." },
+    Spender: { description: "You prioritize your present lifestyle and tend to live in the moment. You prefer keeping your money accessible rather than planning for the distant future." },
+    Seeker: { description: "You are interested in growing your money but lack a concrete strategy. You might have a mix of investments but are looking for guidance to create a more structured plan." },
+    Accumulator: { description: "You are an optimistic and spontaneous investor, often drawn to the excitement of high-growth trends. You are motivated by potential big wins but may lack a formal long-term strategy." }
 };
 
 
@@ -32,7 +32,7 @@ const ClientReportModal: React.FC<ClientReportModalProps> = ({ client, financial
     
     const { metrics } = metricsData;
     const { netWorth, totalAssets, totalLiabilities } = metrics;
-    const persona = client.persona ? personaDetails[client.persona] : null;
+    const personaDescription = client.persona ? personaDescriptions[client.persona]?.description : null;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -49,12 +49,11 @@ const ClientReportModal: React.FC<ClientReportModalProps> = ({ client, financial
                 </header>
                 <main className="report-modal-body">
                     <section className="report-section report-grid">
-                        {persona && (
+                        {client.persona && personaDescription && (
                              <div className="report-persona-card">
                                 <h3>Financial Persona</h3>
-                                <div className="avatar">{persona.avatar}</div>
-                                <h4>{persona.name}</h4>
-                                <p>{persona.archetype}</p>
+                                <h4>{client.persona}</h4>
+                                <p>{personaDescription}</p>
                             </div>
                         )}
                         <div className="report-networth-card">
