@@ -369,9 +369,6 @@ main {
     font-size: 1rem;
     background: var(--primary-gradient);
     -webkit-background-clip: text;
-    background-clip: text;
-    background-clip: text;
-    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -2030,12 +2027,6 @@ main {
 }
 
 /* --- ADVISOR DASHBOARD STYLES --- */
-.advisor-dashboard-container {
-    margin: -1rem; /* Counteract parent container padding */
-}
-.advisor-dashboard-main {
-    padding: 1rem;
-}
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -2067,6 +2058,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  margin-top: 2rem; /* Add space from KPIs */
 }
 .client-controls-header {
   display: flex;
@@ -2314,6 +2306,63 @@ main {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
+  
+  /* Advisor Dashboard Responsive Styles */
+  .client-filters-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  .filter-group {
+      justify-content: space-between;
+  }
+  .filter-group input[type="date"], .filter-group input[type="number"] {
+      width: auto;
+      flex-grow: 1;
+  }
+
+  .client-list-table thead {
+    display: none;
+  }
+  .client-list-table,
+  .client-list-table tbody,
+  .client-list-table tr {
+    display: block;
+  }
+  .client-list-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .client-list-table td {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    text-align: right;
+    position: relative;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .client-list-table tr td:last-child {
+    border-bottom: 0;
+  }
+  .client-list-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0.75rem;
+    width: auto;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-color-light);
+  }
+  .client-list-table td .client-info {
+      text-align: right;
+  }
+  .client-list-table .completion-bar-container {
+    flex-direction: row-reverse; /* Keep % on the right */
+  }
+
 }
 
 @media (max-width: 480px) {

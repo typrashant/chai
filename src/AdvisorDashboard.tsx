@@ -94,7 +94,7 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
     }
 
     return (
-        <div className="advisor-dashboard-container">
+        <div className="container">
              <header className="header">
                 <Logo />
                 <div className="header-actions">
@@ -113,7 +113,7 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
                     </div>
                 )}
             </header>
-            <main className="advisor-dashboard-main">
+            <main>
                 <div className="kpi-grid">
                     <KPICard title="Total Clients" value={stats.totalClients} colorVariant="1" />
                     <KPICard title="Net Worth Calculated" value={stats.netWorthCalculated} colorVariant="2" />
@@ -169,19 +169,19 @@ const AdvisorDashboard = ({ advisor, onLogout }: { advisor: UserProfile, onLogou
                             <tbody>
                                 {filteredClients.map(client => (
                                     <tr key={client.user_id}>
-                                        <td>
+                                        <td data-label="Client Name">
                                             <div className="client-info">
                                                 <span>{client.name}</span>
                                                 <span>{client.phone_number}</span>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td data-label="Completion">
                                             <div className="completion-bar-container">
                                                 <div className="completion-bar"><div className="completion-bar-inner" style={{ width: `${client.completion}%` }}></div></div>
                                                 <span>{client.completion}%</span>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td data-label="Report">
                                             {client.report_shared_at ? (
                                                 <button className="update-button view-report-btn" onClick={() => handleViewReport(client)}>View Report</button>
                                             ) : (
