@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -268,6 +265,20 @@ const App = () => {
   const [linkedAdvisor, setLinkedAdvisor] = useState<UserProfile | null>(null);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  const [initialAction, setInitialAction] = useState<{view?: string | null; action?: string | null} | null>(null);
+
+  // This effect runs only once to capture initial URL parameters for deep-linking from PWA shortcuts.
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const view = urlParams.get('view');
+    const action = urlParams.get('action');
+    if (view || action) {
+      setInitialAction({ view, action });
+      // Clean the URL so a refresh doesn't re-trigger the action.
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+  
   useEffect(() => {
     if (!supabase) {
         setIsLoading(false);
@@ -324,6 +335,17 @@ const App = () => {
     setGoals(fetchedGoals || []);
     setUserActions(fetchedActions || []);
     setIsLoading(false);
+
+    // After all data is loaded, handle any initial deep-link actions.
+    if (initialAction) {
+        if (initialAction.view === 'plan') {
+            setActiveView('plan');
+        }
+        if (initialAction.action === 'networth') {
+            setIsNetWorthOpen(true);
+        }
+        setInitialAction(null); // Consume the action
+    }
   };
   
   const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
