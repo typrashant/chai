@@ -21,10 +21,10 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'app.vercel.sand_chai',
-    hostName: 'chai-sand.vercel.app', // The domain being opened in the TWA.
-    launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
-    name: 'ChAi', // The application name.
+    applicationId: 'app.vercel.chai_nqnh.twa',
+    hostName: 'chai-nqnh.vercel.app', // The domain being opened in the TWA.
+    launchUrl: 'https://chai-nqnh.vercel.app/', // The start path for the TWA. Must be relative to the domain.
+    name: 'ChAi - Smart finance, made simple.', // The application name.
     launcherName: 'ChAi', // The name shown on the Android Launcher.
     themeColor: '#1C1A19', // The color used for the status bar.
     themeColorDark: '#000000', // The color used for the dark status bar.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "app.vercel.sand_chai"
+    namespace "app.vercel.chai_nqnh.twa"
     defaultConfig {
-        applicationId "app.vercel.sand_chai"
+        applicationId "app.vercel.chai_nqnh.twa"
         minSdkVersion 21
         targetSdkVersion 35
         versionCode 1
@@ -76,12 +76,12 @@ android {
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
-            resValue "string", "webManifestUrl", 'https://chai-sand.vercel.app/manifest.json'
+            resValue "string", "webManifestUrl", 'https://chai-nqnh.vercel.app/manifest.json'
         
 
         
             // This is used by Meta Quest.
-            resValue "string", "fullScopeUrl", 'https://chai-sand.vercel.app/'
+            resValue "string", "fullScopeUrl", 'https://chai-nqnh.vercel.app/'
         
 
         

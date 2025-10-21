@@ -1,0 +1,4 @@
+#Tue Oct 21 12:53:48 IST 2025
+base.0=C\:\\vapp\\chai-app-vite\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
