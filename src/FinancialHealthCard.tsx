@@ -115,6 +115,12 @@ const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ ratios, isCli
             )
         })}
       </div>
+       {isClickable && (
+        <div className="card-action-footer">
+            <span>View Trends</span>
+            <span className="chevron">→</span>
+        </div>
+      )}
     </div>
   );
 };

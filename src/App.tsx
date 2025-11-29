@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from './SupabaseClient.ts';
 import Auth from './Auth.tsx';
@@ -11,6 +10,7 @@ import FinancialProtectionCard from './FinancialProtectionCard.tsx';
 import FinancialGoalsCard from './FinancialGoalsCard.tsx';
 import RetirementTracker from './RetirementTracker.tsx';
 import PowerOfSavingCard from './PowerOfSavingCard.tsx';
+import WealthSimulatorCard from './WealthSimulatorCard.tsx'; // Import the new card
 import MyPlan from './MyPlan.tsx';
 import { HomeIcon, PlanIcon, ShareIcon, CloseIcon } from './icons.tsx';
 import MonthlyCashflowCard from './MonthlyCashflowCard.tsx';
@@ -265,20 +265,6 @@ const App = () => {
   const [linkedAdvisor, setLinkedAdvisor] = useState<UserProfile | null>(null);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const [initialAction, setInitialAction] = useState<{view?: string | null; action?: string | null} | null>(null);
-
-  // This effect runs only once to capture initial URL parameters for deep-linking from PWA shortcuts.
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const view = urlParams.get('view');
-    const action = urlParams.get('action');
-    if (view || action) {
-      setInitialAction({ view, action });
-      // Clean the URL so a refresh doesn't re-trigger the action.
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-  
   useEffect(() => {
     if (!supabase) {
         setIsLoading(false);
@@ -335,17 +321,6 @@ const App = () => {
     setGoals(fetchedGoals || []);
     setUserActions(fetchedActions || []);
     setIsLoading(false);
-
-    // After all data is loaded, handle any initial deep-link actions.
-    if (initialAction) {
-        if (initialAction.view === 'plan') {
-            setActiveView('plan');
-        }
-        if (initialAction.action === 'networth') {
-            setIsNetWorthOpen(true);
-        }
-        setInitialAction(null); // Consume the action
-    }
   };
   
   const handleAwardPoints = async (source: string, element: HTMLElement, points: number) => {
@@ -637,9 +612,15 @@ const App = () => {
                 {isFinancialHealthTimelineOpen && currentUser && historicalRatios ? (
                     <FinancialHealthTimeline historicalRatios={historicalRatios} onBack={() => setIsFinancialHealthTimelineOpen(false)} />
                 ) : isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
-                    <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
+                    <div className="timeline-view-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                         <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
+                         <PowerOfSavingCard />
+                    </div>
                 ) : (
                     <div className="dashboard-grid">
+                        {/* New Wealth Simulator inserted here for the "Greed" Hook */}
+                        <WealthSimulatorCard />
+
                         {isNetWorthOpen ? (
                             <NetWorthCalculator data={{ assets: financials.assets, liabilities: financials.liabilities }} onUpdate={(d) => setFinancials(f => ({...f!, ...d}))} onClose={(e) => handleSaveAndCloseCalculators('netWorth', e.currentTarget)} />
                         ) : (
@@ -659,7 +640,17 @@ const App = () => {
                                         {hasCompleted('netWorth') ? 'Update' : 'Calculate'}
                                     </button>
                                 </div>
-                                {hasCompleted('netWorth') ? <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p> : <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>}
+                                {hasCompleted('netWorth') ? (
+                                    <>
+                                        <p className="summary-value">{formatCurrency(metrics.netWorth || 0)}</p>
+                                        <div className="card-action-footer">
+                                            <span>View Timeline</span>
+                                            <span className="chevron">→</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="summary-placeholder"><p>Calculate to see your financial snapshot.</p></div>
+                                )}
                             </div>
                         )}
                         
@@ -685,8 +676,6 @@ const App = () => {
 
                         <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
 
-                        <PowerOfSavingCard />
-                        
                         <FinancialGoalsCard user={currentUser} goals={goals} goalCoverageRatios={metrics.goalCoverageRatios} onAddGoal={handleAddGoal} onRemoveGoal={handleRemoveGoal} isOpen={isGoalsOpen} onToggle={(e) => handleGoalsToggle(e.currentTarget)} isCompleted={hasCompleted('financialGoals')} potentialPoints={REWARD_POINTS.financialGoals} />
 
                         <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
