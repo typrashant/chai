@@ -675,6 +675,124 @@ main {
     color: var(--primary-color);
 }
 
+/* Net Worth Hero Tile specific styles */
+.networth-hero-card {
+    grid-column: span 1; /* Default to 1 column */
+}
+
+/* On larger screens, make it span 2 */
+@media (min-width: 600px) {
+    .networth-hero-card {
+        grid-column: span 2;
+    }
+}
+
+.hero-networth-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    position: relative;
+    padding-bottom: 3rem; /* Space for footer */
+}
+
+.hero-networth-content .card-action-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    margin-top: 0;
+}
+
+.current-networth, .potential-networth {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--background-color);
+}
+
+.current-networth span, .potential-networth span {
+    font-size: 0.8rem;
+    color: var(--text-color-light);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.current-networth p {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.potential-networth p {
+    font-size: 1.5rem;
+    font-weight: 800;
+    /* Shimmer effect is applied via .shimmer-text class in WealthSimulatorCard styles, reused here */
+}
+
+/* Nudge Modal Styles */
+.nudge-overlay {
+    background-color: rgba(0,0,0,0.8);
+}
+
+.nudge-content {
+    max-width: 350px;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+}
+
+.nudge-emoji {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.nudge-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.nudge-content p {
+    color: var(--text-color-light);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.nudge-cta-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+    transition: transform 0.2s;
+}
+
+.nudge-cta-button:hover {
+    transform: translateY(-2px);
+}
+
+.nudge-close-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-color-light);
+    cursor: pointer;
+    padding: 0.5rem;
+}
+.nudge-close-button:hover {
+    color: var(--text-color);
+}
+
 
 /* Cashflow Summary */
 .cashflow-absolute-summary {

@@ -1,8 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const formatCurrency = (value: number) => {
-    // For very large numbers, we might want to shorten it (e.g., 1.5 Cr), but standard formatting is impressive too.
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 };
 
@@ -12,12 +11,32 @@ const formatCompact = (value: number) => {
     return formatCurrency(value);
 }
 
-const WealthSimulatorCard = () => {
+interface WealthSimulatorProps {
+    defaults?: {
+        investment: number;
+        duration: number;
+        rate: number;
+        stepUp: number;
+    }
+}
+
+const WealthSimulatorCard: React.FC<WealthSimulatorProps> = ({ defaults }) => {
+    // Initialize state with defaults or fallbacks, but allow user to change them
     const [monthlyInvestment, setMonthlyInvestment] = useState(10000);
     const [years, setYears] = useState(20);
     const [returnRate, setReturnRate] = useState(12);
-    const [stepUpRate, setStepUpRate] = useState(10); // Annual increase in SIP
+    const [stepUpRate, setStepUpRate] = useState(10);
     const [isStepUpEnabled, setIsStepUpEnabled] = useState(true);
+
+    // Effect to update state when defaults change (e.g. data loads)
+    useEffect(() => {
+        if (defaults) {
+            setMonthlyInvestment(defaults.investment);
+            setYears(defaults.duration);
+            setReturnRate(defaults.rate);
+            setStepUpRate(defaults.stepUp);
+        }
+    }, [defaults]);
 
     const { totalCorpus, totalInvested, chartData } = useMemo(() => {
         const monthlyRate = returnRate / 100 / 12;
@@ -65,7 +84,7 @@ const WealthSimulatorCard = () => {
             <div className="wealth-header">
                 <div>
                     <h2 className="shimmer-text">Future Wealth Potential</h2>
-                    <p className="wealth-subtitle">How rich could you be?</p>
+                    <p className="wealth-subtitle">Projected wealth by age {((defaults?.duration || 0) + (60 - (defaults?.duration || 0)))}</p>
                 </div>
                 <div className="wealth-badge">
                     🚀 Target: {formatCompact(totalCorpus)}
@@ -109,11 +128,11 @@ const WealthSimulatorCard = () => {
                 <div className="control-row">
                     <div className="slider-container">
                         <label>Monthly Investment: <strong>{formatCurrency(monthlyInvestment)}</strong></label>
-                        <input type="range" min="1000" max="100000" step="500" value={monthlyInvestment} onChange={(e) => setMonthlyInvestment(Number(e.target.value))} />
+                        <input type="range" min="1000" max="200000" step="500" value={monthlyInvestment} onChange={(e) => setMonthlyInvestment(Number(e.target.value))} />
                     </div>
                      <div className="slider-container">
                         <label>Duration: <strong>{years} Years</strong></label>
-                        <input type="range" min="5" max="40" step="1" value={years} onChange={(e) => setYears(Number(e.target.value))} />
+                        <input type="range" min="3" max="50" step="1" value={years} onChange={(e) => setYears(Number(e.target.value))} />
                     </div>
                 </div>
 
@@ -141,7 +160,7 @@ const WealthSimulatorCard = () => {
                             onChange={(e) => setStepUpRate(Number(e.target.value))} 
                             className={!isStepUpEnabled ? 'disabled' : ''}
                         />
-                        <p className="control-note">Increasing your investment as your income grows is the secret to massive wealth.</p>
+                        <p className="control-note">Increasing your investment as your income grows.</p>
                     </div>
                 </div>
             </div>
