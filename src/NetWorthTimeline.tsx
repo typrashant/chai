@@ -1,5 +1,4 @@
 
-
 import React, { useMemo } from 'react';
 import { type UserProfile, type FinancialSnapshot } from './db';
 

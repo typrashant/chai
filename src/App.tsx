@@ -6,11 +6,10 @@ import PersonaQuiz from './PersonaQuiz.tsx';
 import NetWorthCalculator from './NetWorthCalculator.tsx';
 import MonthlyFinances from './MonthlyFinances.tsx';
 import InvestmentAllocation from './InvestmentAllocation.tsx';
-// Removed FinancialHealthCard import
+import FinancialHealthCard from './FinancialHealthCard.tsx';
 import FinancialProtectionCard from './FinancialProtectionCard.tsx';
 import FinancialGoalsCard from './FinancialGoalsCard.tsx';
 import RetirementTracker from './RetirementTracker.tsx';
-import PowerOfSavingCard from './PowerOfSavingCard.tsx';
 import WealthSimulatorCard from './WealthSimulatorCard.tsx';
 import MyPlan from './MyPlan.tsx';
 import { HomeIcon, PlanIcon, ShareIcon, CloseIcon } from './icons.tsx';
@@ -62,7 +61,7 @@ interface Ratios {
     wealthRatio: Ratio;
 }
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 
 const REWARD_POINTS = {
     netWorth: 250,
@@ -523,7 +522,7 @@ const App = () => {
   const metrics = metricsData?.metrics;
   const triggeredActionKeys = metricsData?.triggeredActionKeys || [];
 
-  // Wealth Simulator Defaults Logic
+  // Wealth Simulator Defaults Logic with Persona adjustments
   const simulatorDefaults = useMemo(() => {
       if (!currentUser || !metrics) return undefined;
       
@@ -533,11 +532,26 @@ const App = () => {
       const monthlyIncome = metrics.monthlyIncome;
       const investment = monthlyIncome > 0 ? monthlyIncome * 0.30 : 10000;
       
+      // Base Rate Logic
       let rate = 8;
       if (duration >= 8) rate = 18;
       else if (duration > 5) rate = 15;
       else if (duration > 3) rate = 12;
+
+      // Apply Persona Multipliers
+      const persona = currentUser.persona;
+      if (persona) {
+          if (['Seeker', 'Planner'].includes(persona)) {
+              rate = rate * (5 / 6); // ~0.83x
+          } else if (['Guardian', 'Spender'].includes(persona)) {
+              rate = rate * (2 / 3); // ~0.66x
+          }
+          // Adventurer and Accumulator use the base rate (1x)
+      }
       
+      // Round to 1 decimal place
+      rate = Math.round(rate * 10) / 10;
+
       return {
           investment,
           duration,
@@ -665,9 +679,7 @@ const App = () => {
                 ) : isNetWorthTimelineOpen && currentUser && metrics && financialHistory ? (
                     <div className="timeline-view-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                          <NetWorthTimeline user={currentUser} metrics={metrics} financialHistory={financialHistory} onBack={() => setIsNetWorthTimelineOpen(false)} />
-                         {/* WealthSimulatorCard moved here to replace FinancialHealthCard conceptually on the detail view */}
                          <WealthSimulatorCard defaults={simulatorDefaults} />
-                         <PowerOfSavingCard />
                     </div>
                 ) : (
                     <div className="dashboard-grid">
@@ -731,7 +743,11 @@ const App = () => {
                             />
                         )}
                         
-                        {/* FinancialHealthCard REMOVED as requested */}
+                        <FinancialHealthCard 
+                            ratios={metrics.healthRatios} 
+                            isClickable={true} 
+                            onClick={() => setIsFinancialHealthTimelineOpen(true)} 
+                        />
 
                         <FinancialProtectionCard financials={financials} protectionScores={metrics.protectionScores} onUpdate={(d: Insurance) => setFinancials(f => ({...f!, insurance: d}))} isOpen={isProtectionOpen} onToggle={(e) => handleProtectionToggle(e.currentTarget)} isCompleted={hasCompleted('financialProtection')} potentialPoints={REWARD_POINTS.financialProtection} />
 
@@ -739,7 +755,7 @@ const App = () => {
 
                         <RetirementTracker retirementReadiness={metrics.retirementReadiness} />
 
-                        <InvestmentAllocation assets={financials.assets} />
+                        <InvestmentAllocation assets={financials.assets} user={currentUser} />
 
                     </div>
                 )}
@@ -753,6 +769,7 @@ const App = () => {
                 triggeredActionKeys={triggeredActionKeys}
                 onStartAction={handleStartAction}
                 onCompleteAction={handleCompleteAction}
+                defaults={simulatorDefaults}
             />
         )}
       </main>

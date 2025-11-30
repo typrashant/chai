@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { type Assets } from './db.ts';
+
+import React, { useMemo, useState } from 'react';
+import { type Assets, type UserProfile } from './db.ts';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
@@ -40,7 +41,7 @@ const investmentLabels: { [K in keyof Assets]?: string } = {
   recurringDeposit: 'RD',
 };
 
-const DonutChart = ({ data, children }: { data: any[], children?: React.ReactNode }) => {
+const DonutChart = ({ data, centerText, subText }: { data: any[], centerText: string, subText?: string }) => {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
     let accumulatedPercentage = 0;
@@ -64,7 +65,8 @@ const DonutChart = ({ data, children }: { data: any[], children?: React.ReactNod
                 );
             })}
             <text x="50" y="50" className="donut-center-text">
-                {children}
+                <tspan x="50" dy="-0.2em" className="donut-center-value">{centerText}</tspan>
+                {subText && <tspan x="50" dy="1.2em" className="donut-center-label">{subText}</tspan>}
             </text>
         </svg>
     )
@@ -96,7 +98,9 @@ const AnalyticsBar = ({ title, segments }: { title: string, segments: { label: s
     )
 }
 
-const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
+const InvestmentAllocation: React.FC<{ assets: Assets; user?: UserProfile }> = ({ assets, user }) => {
+  const [view, setView] = useState<'current' | 'target'>('current');
+
   const { total, allocations, analytics } = useMemo(() => {
     const investmentAssets = Object.entries(assets).filter(([key]) => investmentLabels[key as keyof Assets]);
     const total = investmentAssets.reduce((sum, [, value]) => sum + Number(value), 0);
@@ -136,36 +140,92 @@ const InvestmentAllocation: React.FC<{ assets: Assets }> = ({ assets }) => {
 
     return { total, allocations, analytics };
   }, [assets]);
+
+  // Target Allocation Calculation
+  const targetAllocation = useMemo(() => {
+      if (!user) return null;
+      const age = user.age || 30;
+      let equityPerc = Math.max(0, 110 - age);
+      
+      const persona = user.persona;
+      if (persona) {
+          if (['Adventurer', 'Accumulator'].includes(persona)) {
+              equityPerc = Math.min(100, equityPerc + 10);
+          } else if (['Guardian', 'Spender'].includes(persona)) {
+              equityPerc = Math.max(0, equityPerc - 15);
+          }
+      }
+
+      const debtPerc = 100 - equityPerc;
+      return [
+          { label: 'Equity', percentage: equityPerc, color: '#4ADE80' },
+          { label: 'Debt', percentage: debtPerc, color: '#60A5FA' }
+      ];
+  }, [user]);
   
   return (
     <div className="card investment-allocation">
-      <h2>Investment Allocation</h2>
+      <div className="summary-card-header">
+          <h2>Investment Allocation</h2>
+          {targetAllocation && (
+             <div className="summary-card-controls">
+                <div className="view-toggle">
+                    <button className={view === 'current' ? 'active' : ''} onClick={() => setView('current')}>Current</button>
+                    <button className={view === 'target' ? 'active' : ''} onClick={() => setView('target')}>Target</button>
+                </div>
+             </div>
+          )}
+      </div>
+      
       <div className="card-content">
         {total > 0 && analytics ? (
           <>
             <div className="chart-with-legend">
-                <DonutChart data={allocations}>
-                    <tspan x="50" className="donut-center-value">{formatInLakhs(total)}</tspan>
-                </DonutChart>
+                {view === 'current' ? (
+                     <DonutChart data={allocations} centerText={formatInLakhs(total)} />
+                ) : (
+                    <DonutChart data={targetAllocation || []} centerText="Target" subText="Mix" />
+                )}
+                
                 <div className="chart-legend-container">
-                  <ul className="chart-legend">
-                      {allocations.map(item => (
-                          <li key={item.label} className="legend-item">
-                              <div className="legend-info">
-                                  <span className="legend-color" style={{ backgroundColor: item.color }}></span>
-                                  <span>{item.label}</span>
-                              </div>
-                              <span className="legend-value">{item.percentage.toFixed(0)}%</span>
-                          </li>
-                      ))}
-                  </ul>
+                    {view === 'current' ? (
+                        <ul className="chart-legend">
+                            {allocations.map(item => (
+                                <li key={item.label} className="legend-item">
+                                    <div className="legend-info">
+                                        <span className="legend-color" style={{ backgroundColor: item.color }}></span>
+                                        <span>{item.label}</span>
+                                    </div>
+                                    <span className="legend-value">{item.percentage.toFixed(0)}%</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-color-light)'}}>
+                           <p>Based on your age ({user?.age}) and investment personality ({user?.persona || 'Standard'}), aim for this balance to optimize returns.</p>
+                           <ul className="chart-legend">
+                            {targetAllocation?.map(item => (
+                                <li key={item.label} className="legend-item">
+                                    <div className="legend-info">
+                                        <span className="legend-color" style={{ backgroundColor: item.color }}></span>
+                                        <span>{item.label}</span>
+                                    </div>
+                                    <span className="legend-value">{item.percentage.toFixed(0)}%</span>
+                                </li>
+                            ))}
+                        </ul>
+                        </div>
+                    )}
                 </div>
             </div>
-            <div className="portfolio-analytics">
-                <AnalyticsBar title="Debt vs. Equity" segments={analytics.riskProfile} />
-                <AnalyticsBar title="Investment Horizon" segments={analytics.horizon} />
-                <AnalyticsBar title="Asset Purpose" segments={analytics.purpose} />
-            </div>
+            
+            {view === 'current' && (
+                <div className="portfolio-analytics">
+                    <AnalyticsBar title="Debt vs. Equity" segments={analytics.riskProfile} />
+                    <AnalyticsBar title="Investment Horizon" segments={analytics.horizon} />
+                    <AnalyticsBar title="Asset Purpose" segments={analytics.purpose} />
+                </div>
+            )}
           </>
         ) : (
           <div className="summary-placeholder" style={{flexGrow: 1}}>

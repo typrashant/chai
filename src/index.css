@@ -965,6 +965,56 @@ main {
     padding-left: 0.5rem;
 }
 
+/* Path to Wealth Card */
+.path-to-wealth-card {
+    background: linear-gradient(135deg, var(--card-background) 0%, #2e2825 100%);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 1.5rem !important;
+}
+
+.wealth-step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.wealth-step:last-child {
+    margin-bottom: 0;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    color: white;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+}
+
+.step-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.step-content strong {
+    font-size: 1rem;
+    color: var(--text-color);
+    margin-bottom: 0.2rem;
+}
+
+.step-content p {
+    font-size: 0.85rem;
+    color: var(--text-color-light);
+    line-height: 1.4;
+    margin: 0;
+}
+
+
 /* Auth Page */
 .auth-container {
     display: flex;

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { type UserProfile, type UserAction } from './db.ts';
 import { WarningIcon } from './icons.tsx';
@@ -12,6 +11,12 @@ interface MyPlanProps {
     triggeredActionKeys: string[];
     onStartAction: (actionKey: string, targetDate: string) => void;
     onCompleteAction: (actionId: string) => void;
+    defaults?: {
+        investment: number;
+        duration: number;
+        rate: number;
+        stepUp: number;
+    };
 }
 
 // FIX: Refactored to use an explicit props interface with React.FC for better type safety.
@@ -68,8 +73,62 @@ const ActionCardInProgress: React.FC<ActionCardInProgressProps> = ({ title, targ
     );
 };
 
+const PathToWealthCard = ({ defaults }: { defaults: MyPlanProps['defaults'] }) => {
+    if (!defaults) return null;
+    
+    const { investment, duration, rate, stepUp } = defaults;
+    const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 
-const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, triggeredActionKeys, onStartAction, onCompleteAction }) => {
+    let strategyText = "Investing in Equities";
+    let strategyDesc = "Targeting high growth through diversified equity mutual funds or stocks.";
+    
+    if (rate <= 9) {
+        strategyText = "Fixed Income & Debt";
+        strategyDesc = "Focusing on stability with PPF, FDs, and Debt Funds.";
+    } else if (rate <= 12) {
+        strategyText = "Balanced Portfolio";
+        strategyDesc = "Mixing stability and growth with Hybrid Funds and Large-cap indices.";
+    }
+
+    return (
+        <div className="plan-level-category">
+             <div className="plan-level-header">
+                <span className="plan-level-icon">🎯</span>
+                <div className="plan-level-title-group">
+                    <h2>How to Achieve Your Potential</h2>
+                    <p>Your roadmap to hitting that wealth target based on your persona.</p>
+                </div>
+            </div>
+            <div className="plan-level-actions">
+                <div className="action-card path-to-wealth-card">
+                    <div className="wealth-step">
+                        <div className="step-number">1</div>
+                        <div className="step-content">
+                            <strong>Start SIP of {formatCurrency(investment)}/mo</strong>
+                            <p>Begin immediately to let compounding work for {duration} years.</p>
+                        </div>
+                    </div>
+                    <div className="wealth-step">
+                        <div className="step-number">2</div>
+                        <div className="step-content">
+                            <strong>Target {rate}% Annual Return</strong>
+                            <p>By {strategyText.toLowerCase()}: {strategyDesc}</p>
+                        </div>
+                    </div>
+                     <div className="wealth-step">
+                        <div className="step-number">3</div>
+                        <div className="step-content">
+                            <strong>Step-Up by {stepUp}% Yearly</strong>
+                            <p>Increase your investment every year as your income grows to supercharge your corpus.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, triggeredActionKeys, onStartAction, onCompleteAction, defaults }) => {
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
     if (!metrics) {
@@ -145,6 +204,10 @@ const MyPlan: React.FC<MyPlanProps> = ({ metrics, user, userActions, triggeredAc
     return (
         <div className="my-plan-container">
             <h1>My Moves</h1>
+
+            {/* Path to Wealth Section */}
+            {defaults && <PathToWealthCard defaults={defaults} />}
+
             {inProgressActions.length > 0 && (
                 <div className="plan-level-category">
                     <div className="plan-level-header">
